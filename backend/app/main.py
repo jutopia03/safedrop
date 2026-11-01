@@ -1,16 +1,18 @@
 """SafeDrop 백엔드 진입점.
 
-지금(S1)은 서버가 뜨는지와 가상 기업 데이터를 읽을 수 있는지만 확인한다.
-탐지(S2), 판정(S3), 토큰·전송(S4)은 이후 단계에서 모듈로 추가한다.
+흐름: 추출(extract) → 탐지(detect) → 수신자별 판정(policy) → 마스킹(mask)
+토큰·전송(S4)은 이후 단계에서 추가한다.
 """
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.staticfiles import StaticFiles
 
 from .detect import detect
 from .extract import extract_text
+from .mask import mask_text
+from .policy import judge
 
 ROOT = Path(__file__).resolve().parents[2]  # 저장소 루트
 DATA = ROOT / "data" / "company"
@@ -50,6 +52,34 @@ async def scan(file: UploadFile = File(...)):
         "readable": ex.readable,
         "reason": ex.reason,
         "entities": [e.to_dict() for e in entities],
+    }
+
+
+@app.post("/api/judge")
+async def judge_file(
+    file: UploadFile = File(...),
+    sender_id: str = Form(...),
+    recipient_ids: str = Form(..., description="쉼표로 구분한 수신자 id 목록"),
+):
+    """S3: 추출 → 탐지 → 수신자별 판정 → (MASK 수신자용) 마스킹 사본 미리보기."""
+    people = {p["id"] for p in load_json("org.json")["people"]}
+    rids = [r.strip() for r in recipient_ids.split(",") if r.strip()]
+    if sender_id not in people or not rids or any(r not in people for r in rids):
+        raise HTTPException(400, "발신자 또는 수신자 id가 올바르지 않음")
+
+    data = await file.read()
+    ex = extract_text(file.filename, data)
+    entities = detect(ex.text) if ex.readable else []
+    decisions = judge(entities, ex.readable, sender_id, rids)
+    for d in decisions:
+        if d["action"] == "MASK":
+            d["masked_preview"] = mask_text(ex.text, entities, d["mask_categories"])[:2000]
+    return {
+        "filename": file.filename,
+        "readable": ex.readable,
+        "reason": ex.reason,
+        "entities": [e.to_dict() for e in entities],
+        "decisions": decisions,
     }
 
 
