@@ -21,6 +21,14 @@ uvicorn backend.app.main:app --reload
 # 브라우저에서 http://localhost:8000
 ```
 
+## 배포 (Render 무료 웹 서비스)
+1. [render.com](https://render.com)에 GitHub 계정으로 가입 (카드 불필요)
+2. New → **Blueprint** → 이 저장소 선택 → `render.yaml` 설정으로 생성
+3. 배포 완료 후 `https://<서비스이름>.onrender.com` 접속
+- 무료 플랜은 15분 동안 요청이 없으면 잠들고, 다음 접속 때 약 1분 걸려 깨어남 → 시연·테스트 직전에 한 번 접속해 깨워 둘 것
+- 잠들었다 깨면 서버 메모리(서명 키, 중계 대기 파일)가 초기화됨 → 그 전에 발급된 토큰은 무효
+- API 키는 Render 대시보드 Environment에 입력 (저장소에 커밋 금지)
+
 ## 개발 단계
 - [x] S1 뼈대 + 가상 기업 데이터
 - [x] S2 텍스트 추출 + 정규식 탐지 (+ 추출 불가 시 차단)
