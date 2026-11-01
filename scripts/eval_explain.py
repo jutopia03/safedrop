@@ -40,5 +40,5 @@ for b in range(0, len(decisions), 5):          # 5명씩 묶어 호출 (실제 �
             ok += 1
         else:
             print(f"  ✘ {r['category']:<10} {d['recipient_class']:<10} → {e['problems']}")
-print(f"\n모델 {llm.model_name()} / {len(decisions)}건 / {time.time() - t0:.1f}초")
+print(f"\n설명 모델 {llm.explain_model()} / {len(decisions)}건 / {time.time() - t0:.1f}초")
 print(f"인용 검증 통과(AI 설명 채택) {ok}/{len(decisions)} ({ok/len(decisions):.0%}) · 나머지는 템플릿 설명으로 대체")
