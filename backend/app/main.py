@@ -6,6 +6,7 @@
 import json
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -133,24 +134,38 @@ async def receipt(request: Request):
     return {"ok": True}
 
 
-_last_eval = {"t": 0.0}
+_evals: dict[str, dict] = {}   # 측정 이름 → {status, started, finished, output}
+_eval_lock = threading.Lock()
+
+
+def _run_eval_job(name: str, script: str):
+    try:
+        r = subprocess.run([sys.executable, str(ROOT / "scripts" / script)], capture_output=True,
+                           text=True, timeout=600, cwd=ROOT)
+        out = r.stdout + (("\n[오류]\n" + r.stderr[-2000:]) if r.returncode else "")
+    except Exception as e:  # 시간 초과 등
+        out = f"[오류] {e}"
+    _evals[name].update(status="done", finished=time.strftime("%Y-%m-%d %H:%M:%S"), output=out)
 
 
 @app.get("/api/eval/{name}", response_class=PlainTextResponse)
-def run_eval(name: str):
-    """성능 측정 스크립트를 서버에서 실행하고 결과를 글자로 돌려준다 (배포 환경의 API 키로 측정하기 위함).
+def run_eval(name: str, rerun: int = 0):
+    """성능 측정을 서버에서 '백그라운드로' 실행한다 (AI를 여러 번 부르는 측정은 1~2분 걸려 요청이 끊기므로).
+    처음 열면 측정을 시작하고, 다시 열면 진행 상황 또는 결과를 보여준다. ?rerun=1 이면 새로 측정.
     detect: 정규식 탐지 / retrieval: 조항 검색 / sensitive: AI 민감정보 판단 / explain: AI 설명 인용 검증"""
     scripts = {"detect": "eval_detect.py", "retrieval": "eval_retrieval.py",
                "sensitive": "eval_sensitive.py", "explain": "eval_explain.py"}
     if name not in scripts:
         raise HTTPException(404, f"가능한 측정: {', '.join(scripts)}")
-    if name in ("sensitive", "explain"):        # AI를 부르는 측정만 연속 호출 제한 (크레딧 보호)
-        if time.time() - _last_eval["t"] < 30:
-            raise HTTPException(429, "30초 후 다시 시도하세요")
-        _last_eval["t"] = time.time()
-    r = subprocess.run([sys.executable, str(ROOT / "scripts" / scripts[name])], capture_output=True,
-                       text=True, timeout=300, cwd=ROOT)
-    return r.stdout + (("\n[stderr]\n" + r.stderr) if r.returncode else "")
+    with _eval_lock:
+        job = _evals.get(name)
+        if job and job["status"] == "running":
+            return f"측정 중입니다... (시작 {job['started']}, {int(time.time() - job['t'])}초 경과)\n1~2분 뒤 새로고침하세요."
+        if job and not rerun:
+            return f"[측정 시각 {job['finished']}]  다시 측정하려면 주소 끝에 ?rerun=1\n\n{job['output']}"
+        _evals[name] = {"status": "running", "started": time.strftime("%H:%M:%S"), "t": time.time()}
+        threading.Thread(target=_run_eval_job, args=(name, scripts[name]), daemon=True).start()
+    return "측정을 시작했습니다. 1~2분 뒤 이 페이지를 새로고침하세요. (규칙 기반 측정은 몇 초면 끝납니다)"
 
 
 @app.get("/api/audit")

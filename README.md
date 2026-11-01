@@ -30,7 +30,7 @@ uvicorn backend.app.main:app --reload
 - API 키는 Render 대시보드 Environment에 입력 (저장소에 커밋 금지): `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL` (`.env.example` 참고)
 
 ## 성능 측정
-배포 주소 뒤에 붙여 브라우저로 열면 서버에서 측정 결과를 글자로 보여줍니다.
+배포 주소 뒤에 붙여 브라우저로 열면 서버가 백그라운드로 측정합니다. 처음 열면 측정 시작, 1~2분 뒤 새로고침하면 결과가 나옵니다(`?rerun=1`로 재측정).
 - `/api/eval/detect` 정규식 탐지 재현율·정밀도 (테스트 문서 세트)
 - `/api/eval/retrieval` 근거 조항 검색 Recall@1·@3
 - `/api/eval/sensitive` AI 민감정보 판단 정확도 (AI 사용, 30초 간격 제한)
