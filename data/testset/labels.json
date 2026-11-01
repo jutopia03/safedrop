@@ -5,7 +5,7 @@
     "entities": [
       {"category": "UNIQUE_ID", "type": "RRN", "text": "950312-2345678"},
       {"category": "CONTACT", "type": "PHONE", "text": "010-9876-5432"},
-      {"category": "CONTACT", "type": "EMAIL", "text": "minseo.k@example.com"},
+      {"category": "CONTACT", "type": "EMAIL", "text": "yunseul.d@example.com"},
       {"category": "FINANCIAL", "type": "ACCOUNT", "text": "110-234-567890"}
     ]
   }

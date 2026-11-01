@@ -4,15 +4,45 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SafeDrop</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>SafeDrop</h1>
-  <p>민감정보 판단 AI 기반 사내 파일 전송 (개발 중 - S1 뼈대)</p>
-  <pre id="health">서버 상태 확인 중...</pre>
-  <script>
-    fetch('/api/health').then(r => r.json())
-      .then(d => document.getElementById('health').textContent = JSON.stringify(d, null, 2))
-      .catch(e => document.getElementById('health').textContent = '서버 연결 실패: ' + e);
-  </script>
+  <header>
+    <div class="brand"><b>SafeDrop</b><span>안전한 사내 파일 전송 · 가상 기업 코데브솔루션(주)</span></div>
+    <label class="me">나는
+      <select id="me"></select>
+      <span id="conn" class="dot off" title="연결 상태"></span>
+    </label>
+  </header>
+
+  <main>
+    <section id="send" class="card">
+      <h2>보내기</h2>
+      <div class="row">
+        <input type="file" id="file" accept=".txt,.pdf,.docx">
+      </div>
+      <div id="recipients" class="recipients"></div>
+      <div class="row">
+        <button id="btnJudge">검사하기</button>
+        <button id="btnSend" class="primary" disabled>허가된 대상에게 전송</button>
+      </div>
+      <p id="sendMsg" class="msg"></p>
+      <div id="results"></div>
+    </section>
+
+    <section id="inbox" class="card">
+      <h2>받은 파일</h2>
+      <p class="hint">수신 시 브라우저가 직접 ① 서버 서명 ② 파일 해시 ③ 수신자·만료를 검증합니다.</p>
+      <div id="inboxList"><p class="empty">아직 받은 파일이 없습니다.</p></div>
+    </section>
+
+    <section class="card">
+      <h2>감사 로그 <button id="btnAudit" class="small">새로고침</button></h2>
+      <p class="hint">파일 내용은 기록하지 않고 누가·누구에게·어떤 조치·근거 조항만 남깁니다 (규정 8-1).</p>
+      <div id="audit"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
 </body>
 </html>

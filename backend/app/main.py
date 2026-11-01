@@ -1,14 +1,16 @@
 """SafeDrop 백엔드 진입점.
 
 흐름: 추출(extract) → 탐지(detect) → 수신자별 판정(policy) → 마스킹(mask)
-토큰·전송(S4)은 이후 단계에서 추가한다.
+      → 전송 허가 토큰(permit) → P2P 전송(신호 중계) 또는 서버 중계(transfer) → 감사 로그
 """
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
+from . import permit, transfer
 from .detect import detect
 from .extract import extract_text
 from .mask import mask_text
@@ -24,20 +26,32 @@ def load_json(name: str) -> dict:
     return json.loads((DATA / name).read_text(encoding="utf-8"))
 
 
+def _person_ids() -> set[str]:
+    return {p["id"] for p in load_json("org.json")["people"]}
+
+
+async def _analyze(file: UploadFile, sender_id: str, recipient_ids: str):
+    """추출 → 탐지 → 수신자별 판정. /api/judge 와 /api/transfer 가 같은 로직을 쓴다."""
+    ids = _person_ids()
+    rids = [r.strip() for r in recipient_ids.split(",") if r.strip()]
+    if sender_id not in ids or not rids or any(r not in ids for r in rids):
+        raise HTTPException(400, "발신자 또는 수신자 id가 올바르지 않음")
+    data = await file.read()
+    ex = extract_text(file.filename, data)
+    entities = detect(ex.text) if ex.readable else []
+    return data, ex, entities, judge(entities, ex.readable, sender_id, rids)
+
+
 @app.get("/api/health")
 def health():
     org = load_json("org.json")
     rules = load_json("rules.json")
-    return {
-        "status": "ok",
-        "people": len(org["people"]),
-        "rule_categories": list(rules["rules"].keys()),
-    }
+    return {"status": "ok", "people": len(org["people"]), "rule_categories": list(rules["rules"].keys())}
 
 
 @app.get("/api/people")
 def people():
-    """화면에서 수신자를 고를 때 쓰는 가상 조직도."""
+    """화면에서 발신자·수신자를 고를 때 쓰는 가상 조직도."""
     return load_json("org.json")["people"]
 
 
@@ -47,40 +61,84 @@ async def scan(file: UploadFile = File(...)):
     data = await file.read()
     ex = extract_text(file.filename, data)
     entities = detect(ex.text) if ex.readable else []
-    return {
-        "filename": file.filename,
-        "readable": ex.readable,
-        "reason": ex.reason,
-        "entities": [e.to_dict() for e in entities],
-    }
+    return {"filename": file.filename, "readable": ex.readable, "reason": ex.reason,
+            "entities": [e.to_dict() for e in entities]}
 
 
 @app.post("/api/judge")
-async def judge_file(
-    file: UploadFile = File(...),
-    sender_id: str = Form(...),
-    recipient_ids: str = Form(..., description="쉼표로 구분한 수신자 id 목록"),
-):
-    """S3: 추출 → 탐지 → 수신자별 판정 → (MASK 수신자용) 마스킹 사본 미리보기."""
-    people = {p["id"] for p in load_json("org.json")["people"]}
-    rids = [r.strip() for r in recipient_ids.split(",") if r.strip()]
-    if sender_id not in people or not rids or any(r not in people for r in rids):
-        raise HTTPException(400, "발신자 또는 수신자 id가 올바르지 않음")
-
-    data = await file.read()
-    ex = extract_text(file.filename, data)
-    entities = detect(ex.text) if ex.readable else []
-    decisions = judge(entities, ex.readable, sender_id, rids)
+async def judge_file(file: UploadFile = File(...), sender_id: str = Form(...), recipient_ids: str = Form(...)):
+    """S3: 수신자별 판정 결과 + (MASK 수신자용) 마스킹 사본 미리보기. 전송은 하지 않는다."""
+    _, ex, entities, decisions = await _analyze(file, sender_id, recipient_ids)
     for d in decisions:
         if d["action"] == "MASK":
             d["masked_preview"] = mask_text(ex.text, entities, d["mask_categories"])[:2000]
-    return {
-        "filename": file.filename,
-        "readable": ex.readable,
-        "reason": ex.reason,
-        "entities": [e.to_dict() for e in entities],
-        "decisions": decisions,
-    }
+    return {"filename": file.filename, "readable": ex.readable, "reason": ex.reason,
+            "entities": [e.to_dict() for e in entities], "decisions": decisions}
+
+
+@app.post("/api/transfer")
+async def start_transfer(file: UploadFile = File(...), sender_id: str = Form(...), recipient_ids: str = Form(...)):
+    """S4: 서버가 판정을 '다시' 수행하고(화면의 결과를 믿지 않음), 차단이 아닌 수신자마다 전송 허가 토큰을 발급한다."""
+    data, ex, entities, decisions = await _analyze(file, sender_id, recipient_ids)
+    return transfer.prepare(file.filename, data, ex.text, entities, sender_id, decisions)
+
+
+@app.get("/api/pubkey")
+def pubkey():
+    """수신자 브라우저가 토큰 서명을 검증할 때 쓰는 서버 공개키."""
+    return permit.public_jwk()
+
+
+@app.get("/api/online")
+def online():
+    return transfer.signaling.online()
+
+
+@app.put("/api/relay/{tid}/{rid}")
+async def relay_put(tid: str, rid: str, request: Request, sender: str, file: str, token: str):
+    """P2P 연결 실패 시 대체 경로: 발신자가 올린 내용을 메모리에 잠시(최대 10분) 두고 수신자에게 알린다.
+    내용이 바뀌었는지는 수신자가 토큰의 해시로 검증하므로 서버는 내용을 신뢰할 필요가 없다."""
+    meta = {"tid": tid, "sender": sender, "file": file, "token": token}
+    transfer.relay_put(tid, rid, await request.body(), meta)
+    transfer.audit("relayed", tid=tid, sender=sender, recipient=rid, file=file)
+    await transfer.signaling.notify(rid, {"from": sender, "type": "relay", "data": meta})
+    return {"ok": True}
+
+
+@app.get("/api/relay/{tid}/{rid}")
+def relay_get(tid: str, rid: str):
+    data = transfer.relay_take(tid, rid)  # 꺼내는 즉시 삭제
+    if data is None:
+        raise HTTPException(404, "중계 데이터가 없거나 만료됨")
+    return Response(data, media_type="application/octet-stream")
+
+
+@app.post("/api/receipt")
+async def receipt(request: Request):
+    """수신자 브라우저의 검증 결과(서명·해시·수신자·만료)를 감사 로그에 남긴다."""
+    body = await request.json()
+    transfer.audit("received", tid=body.get("tid"), recipient=body.get("recipient"),
+                   verified=bool(body.get("verified")), via=body.get("via"), detail=body.get("detail", ""))
+    return {"ok": True}
+
+
+@app.get("/api/audit")
+def audit_log(limit: int = 100):
+    return transfer.read_audit(limit)
+
+
+@app.websocket("/ws/{uid}")
+async def ws(websocket: WebSocket, uid: str):
+    """WebRTC 연결 정보(offer/answer/ice)와 중계 알림을 사용자 간에 전달하는 신호 채널."""
+    await transfer.signaling.connect(uid, websocket)
+    try:
+        while True:
+            msg = await websocket.receive_json()
+            delivered = await transfer.signaling.forward(uid, msg)
+            if not delivered:
+                await websocket.send_json({"type": "error", "data": f"{msg.get('to')} 접속 안 함"})
+    except WebSocketDisconnect:
+        transfer.signaling.disconnect(uid, websocket)
 
 
 # 정적 화면(web/)은 API 라우트 뒤에 마운트한다.
