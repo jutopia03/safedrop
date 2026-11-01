@@ -58,7 +58,7 @@ function formData() {
 
 async function doJudge() {
   const fd = formData(); if (!fd) return;
-  $('sendMsg').textContent = '검사 중...';
+  $('sendMsg').textContent = '검사 중... (AI 문맥 판단이 켜져 있으면 10초 안팎 걸립니다)';
   const r = await fetch('/api/judge', { method: 'POST', body: fd });
   const d = await r.json();
   if (!r.ok) { $('sendMsg').textContent = d.detail || '오류'; return; }
@@ -69,19 +69,39 @@ async function doJudge() {
     ? (d.entities.length ? d.entities.map(show).join(', ') : '탐지된 개인정보 없음')
     : `⚠ ${esc(d.reason)}`;
   const llmLine = d.llm?.llm === 'off' ? 'AI 문맥 판단 꺼짐 (규칙 탐지만)'
-    : `AI 문맥 판단: ${esc(d.llm.llm)} · 후보 문장 ${d.llm.candidates}개${d.llm.error ? ' · ⚠ AI 판단 실패 → 후보 문장을 민감정보로 간주 (' + esc(d.llm.error) + ')' : ''}`;
+    : `AI 문맥 판단: ${esc(d.llm.llm)} · 후보 문장 ${d.llm.candidates}개${d.llm.cached ? ' (이전 판단 재사용)' : ''}${d.llm.error ? ' · ⚠ AI 판단 실패 → 후보 문장을 민감정보로 간주 (' + esc(d.llm.error) + ')' : ''}`;
   $('sendMsg').innerHTML = `<span class="found">탐지 결과: ${found}<br>${llmLine}</span>`;
   $('results').innerHTML = d.decisions.map(renderDecision).join('');
+  if (d.ai_explain && d.decisions.some((x) => x.reasons.length)) loadExplanations(d.judge_id);
   $('btnSend').disabled = !d.decisions.some((x) => x.action !== 'BLOCK');
+}
+
+// 판정은 먼저 보여주고, AI 설명(검색 근거 + 인용 검증)은 도착하는 대로 채운다
+async function loadExplanations(jid) {
+  document.querySelectorAll('.explain .tag').forEach((t) => { t.textContent = '기본 설명 · AI 설명 생성 중…'; });
+  try {
+    const r = await fetch(`/api/explain/${jid}`);
+    if (!r.ok) throw new Error(r.status);
+    const ex = await r.json();
+    for (const [rid, e] of Object.entries(ex)) {
+      const box = document.querySelector(`#res-${rid} .explain`);
+      if (box) box.outerHTML = renderExplain(e);
+    }
+  } catch (e) {
+    document.querySelectorAll('.explain .tag').forEach((t) => { t.textContent = '기본 설명'; });
+  }
+}
+
+function renderExplain(ex) {
+  return `<div class="explain ${ex.source}"><span class="tag">${ex.source === 'ai' ? 'AI 설명 · 인용 검증 통과' : '기본 설명'}</span>
+      ${esc(ex.text)}${ex.problems?.length ? `<div class="why">AI 설명 미사용 사유: ${esc(ex.problems.join(', '))}</div>` : ''}</div>`;
 }
 
 function renderDecision(x) {
   const reasons = x.reasons.map((r) =>
     `<li>${LABEL.category[r.category]} ${r.category === 'UNREADABLE' ? '' : r.count + '건'} → <b>${LABEL.action[r.action]}</b>
       <span class="clause">[${r.clause}] ${esc(r.clause_text)}</span></li>`).join('') || '<li>탐지된 개인정보 없음</li>';
-  const ex = x.explanation;
-  const exBox = ex ? `<div class="explain ${ex.source}"><span class="tag">${ex.source === 'ai' ? 'AI 설명 · 인용 검증 통과' : '기본 설명'}</span>
-      ${esc(ex.text)}${ex.problems?.length ? `<div class="why">AI 설명 미사용 사유: ${esc(ex.problems.join(', '))}</div>` : ''}</div>` : '';
+  const exBox = x.explanation ? renderExplain(x.explanation) : '';
   const preview = x.masked_preview ? `<details><summary>마스킹본 미리보기</summary><pre>${esc(x.masked_preview)}</pre></details>` : '';
   return `<div class="res ${x.action}" id="res-${x.recipient.id}">
     <div class="head"><div><b>${esc(x.recipient.name)}</b> · ${esc(x.recipient.dept)} <span class="dept">(${LABEL.rclass[x.recipient_class]})</span></div>

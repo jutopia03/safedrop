@@ -3,8 +3,10 @@
 흐름: 추출(extract) → 탐지(detect) → 수신자별 판정(policy) → 마스킹(mask)
       → 전송 허가 토큰(permit) → P2P 전송(신호 중계) 또는 서버 중계(transfer) → 감사 로그
 """
+import hashlib
 import json
 import subprocess
+import uuid
 import sys
 import threading
 import time
@@ -12,6 +14,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse, Response
+from fastapi.concurrency import run_in_threadpool
 from fastapi.staticfiles import StaticFiles
 
 from . import llm, permit, transfer
@@ -36,6 +39,31 @@ def _person_ids() -> set[str]:
     return {p["id"] for p in load_json("org.json")["people"]}
 
 
+# 같은 파일 내용(해시)의 AI 민감정보 판단 결과를 10분간 재사용 → '검사 → 전송'에서 AI를 두 번 부르지 않는다.
+# (판단 결과만 보관하고 파일 원본은 보관하지 않는다. 판정은 매번 서버가 다시 계산한다.)
+CACHE_TTL = 10 * 60
+_sens_cache: dict[str, tuple[float, list, dict]] = {}
+_judge_cache: dict[str, tuple[float, list]] = {}   # 검사 ID → 판정 결과 (AI 설명을 나중에 붙이기 위함)
+
+
+def _purge(cache: dict):
+    now = time.time()
+    for k in [k for k, v in cache.items() if now - v[0] > CACHE_TTL]:
+        del cache[k]
+
+
+def _sensitive_cached(data: bytes, text: str):
+    _purge(_sens_cache)
+    key = hashlib.sha256(data).hexdigest()
+    if key in _sens_cache:
+        _, sens, info = _sens_cache[key]
+        return list(sens), dict(info, cached=True)
+    sens, info = detect_sensitive(text)
+    if not info.get("error"):            # 실패 결과는 캐시하지 않는다 (다음에 다시 시도)
+        _sens_cache[key] = (time.time(), sens, info)
+    return sens, info
+
+
 async def _analyze(file: UploadFile, sender_id: str, recipient_ids: str):
     """추출 → 탐지 → 수신자별 판정. /api/judge 와 /api/transfer 가 같은 로직을 쓴다."""
     ids = _person_ids()
@@ -47,7 +75,8 @@ async def _analyze(file: UploadFile, sender_id: str, recipient_ids: str):
     entities, llm_info = [], {"llm": "off"}
     if ex.readable:
         entities = detect(ex.text)                       # v0: 정규식 + 검증
-        sens, llm_info = detect_sensitive(ex.text)       # v1: 문맥형 민감정보 (LLM)
+        # v1: 문맥형 민감정보 (LLM). 시간이 걸리는 호출이라 별도 스레드에서 실행해 서버 전체가 멈추지 않게 한다.
+        sens, llm_info = await run_in_threadpool(_sensitive_cached, data, ex.text)
         entities += sens
     return data, ex, entities, llm_info, judge(entities, ex.readable, sender_id, rids)
 
@@ -83,9 +112,24 @@ async def judge_file(file: UploadFile = File(...), sender_id: str = Form(...), r
     for d in decisions:
         if d["action"] == "MASK":
             d["masked_preview"] = mask_text(ex.text, entities, d["mask_categories"])[:2000]
-    explain(decisions)   # v2: 검색된 조항 근거로 AI 설명 생성 + 인용 검증 (실패 시 기본 설명)
-    return {"filename": file.filename, "readable": ex.readable, "reason": ex.reason,
-            "entities": [e.to_dict() for e in entities], "llm": llm_info, "decisions": decisions}
+    explain(decisions, use_llm=False)   # 우선 기본(템플릿) 설명만 붙여 바로 응답
+    _purge(_judge_cache)
+    jid = uuid.uuid4().hex[:12]
+    _judge_cache[jid] = (time.time(), decisions)
+    return {"filename": file.filename, "readable": ex.readable, "reason": ex.reason, "judge_id": jid,
+            "ai_explain": llm.enabled(), "entities": [e.to_dict() for e in entities], "llm": llm_info,
+            "decisions": decisions}
+
+
+@app.get("/api/explain/{jid}")
+async def explain_later(jid: str):
+    """v2: 검사 결과에 AI 설명(검색된 조항 근거 + 인용 검증)을 나중에 붙인다. 화면은 판정을 먼저 보여주고 이걸 따로 부른다."""
+    item = _judge_cache.get(jid)
+    if not item:
+        raise HTTPException(404, "검사 결과가 만료됨 (다시 검사하세요)")
+    decisions = item[1]
+    await run_in_threadpool(explain, decisions)
+    return {d["recipient"]["id"]: d["explanation"] for d in decisions}
 
 
 @app.post("/api/transfer")

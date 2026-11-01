@@ -79,14 +79,14 @@ def verify(d: dict, retrieved: list[str], exp: dict) -> list[str]:
     return problems
 
 
-def explain(decisions: list[dict], ask=None) -> None:
+def explain(decisions: list[dict], ask=None, use_llm: bool = True) -> None:
     """decisions 각각에 'explanation' 필드를 채운다. ask: 테스트용 LLM 대체 함수(system, user → dict)."""
     retrieved = {d["recipient"]["id"]: _retrieved(d) for d in decisions}
     for d in decisions:
         d["explanation"] = {"text": _template(d), "source": "template", "retrieved": retrieved[d["recipient"]["id"]],
                             "problems": []}
     targets = [d for d in decisions if d["reasons"]]
-    if not targets or (ask is None and not llm.enabled()):
+    if not targets or not use_llm or (ask is None and not llm.enabled()):
         return
     blocks = []
     for d in targets:
