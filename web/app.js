@@ -62,10 +62,15 @@ async function doJudge() {
   const r = await fetch('/api/judge', { method: 'POST', body: fd });
   const d = await r.json();
   if (!r.ok) { $('sendMsg').textContent = d.detail || '오류'; return; }
+  const show = (e) => e.category === 'SENSITIVE'
+    ? `민감정보(${e.type}) <code>${esc(e.text.trim().slice(0, 40))}${e.text.trim().length > 40 ? '…' : ''}</code>`
+    : `${e.type} <code>${esc(e.text)}</code>`;
   const found = d.readable
-    ? (d.entities.length ? d.entities.map((e) => `${e.type} <code>${esc(e.text)}</code>`).join(', ') : '탐지된 개인정보 없음')
+    ? (d.entities.length ? d.entities.map(show).join(', ') : '탐지된 개인정보 없음')
     : `⚠ ${esc(d.reason)}`;
-  $('sendMsg').innerHTML = `<span class="found">탐지 결과: ${found}</span>`;
+  const llmLine = d.llm?.llm === 'off' ? 'AI 문맥 판단 꺼짐 (규칙 탐지만)'
+    : `AI 문맥 판단: ${esc(d.llm.llm)} · 후보 문장 ${d.llm.candidates}개${d.llm.error ? ' · ⚠ AI 판단 실패 → 후보 문장을 민감정보로 간주 (' + esc(d.llm.error) + ')' : ''}`;
+  $('sendMsg').innerHTML = `<span class="found">탐지 결과: ${found}<br>${llmLine}</span>`;
   $('results').innerHTML = d.decisions.map(renderDecision).join('');
   $('btnSend').disabled = !d.decisions.some((x) => x.action !== 'BLOCK');
 }

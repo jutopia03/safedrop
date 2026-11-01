@@ -10,11 +10,12 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, Web
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
-from . import permit, transfer
+from . import llm, permit, transfer
 from .detect import detect
 from .extract import extract_text
 from .mask import mask_text
 from .policy import judge
+from .sensitive import detect_sensitive
 
 ROOT = Path(__file__).resolve().parents[2]  # 저장소 루트
 DATA = ROOT / "data" / "company"
@@ -38,15 +39,20 @@ async def _analyze(file: UploadFile, sender_id: str, recipient_ids: str):
         raise HTTPException(400, "발신자 또는 수신자 id가 올바르지 않음")
     data = await file.read()
     ex = extract_text(file.filename, data)
-    entities = detect(ex.text) if ex.readable else []
-    return data, ex, entities, judge(entities, ex.readable, sender_id, rids)
+    entities, llm_info = [], {"llm": "off"}
+    if ex.readable:
+        entities = detect(ex.text)                       # v0: 정규식 + 검증
+        sens, llm_info = detect_sensitive(ex.text)       # v1: 문맥형 민감정보 (LLM)
+        entities += sens
+    return data, ex, entities, llm_info, judge(entities, ex.readable, sender_id, rids)
 
 
 @app.get("/api/health")
 def health():
     org = load_json("org.json")
     rules = load_json("rules.json")
-    return {"status": "ok", "people": len(org["people"]), "rule_categories": list(rules["rules"].keys())}
+    return {"status": "ok", "people": len(org["people"]), "rule_categories": list(rules["rules"].keys()),
+            "llm": llm.model_name() if llm.enabled() else "off (규칙 탐지만 동작)"}
 
 
 @app.get("/api/people")
@@ -68,18 +74,18 @@ async def scan(file: UploadFile = File(...)):
 @app.post("/api/judge")
 async def judge_file(file: UploadFile = File(...), sender_id: str = Form(...), recipient_ids: str = Form(...)):
     """S3: 수신자별 판정 결과 + (MASK 수신자용) 마스킹 사본 미리보기. 전송은 하지 않는다."""
-    _, ex, entities, decisions = await _analyze(file, sender_id, recipient_ids)
+    _, ex, entities, llm_info, decisions = await _analyze(file, sender_id, recipient_ids)
     for d in decisions:
         if d["action"] == "MASK":
             d["masked_preview"] = mask_text(ex.text, entities, d["mask_categories"])[:2000]
     return {"filename": file.filename, "readable": ex.readable, "reason": ex.reason,
-            "entities": [e.to_dict() for e in entities], "decisions": decisions}
+            "entities": [e.to_dict() for e in entities], "llm": llm_info, "decisions": decisions}
 
 
 @app.post("/api/transfer")
 async def start_transfer(file: UploadFile = File(...), sender_id: str = Form(...), recipient_ids: str = Form(...)):
     """S4: 서버가 판정을 '다시' 수행하고(화면의 결과를 믿지 않음), 차단이 아닌 수신자마다 전송 허가 토큰을 발급한다."""
-    data, ex, entities, decisions = await _analyze(file, sender_id, recipient_ids)
+    data, ex, entities, _, decisions = await _analyze(file, sender_id, recipient_ids)
     return transfer.prepare(file.filename, data, ex.text, entities, sender_id, decisions)
 
 

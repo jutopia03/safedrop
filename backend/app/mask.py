@@ -13,6 +13,8 @@ def _star(s: str, keep_head: int, keep_tail: int) -> str:
 
 
 def mask_value(typ: str, text: str) -> str:
+    if typ in ("HEALTH", "BELIEF", "POLITICS", "UNION", "PRIVATE"):
+        return "[민감정보 가림]"            # 문맥형 민감정보는 문장 전체를 가린다
     if typ in ("RRN", "FRN"):
         return _star(text, 7, 0)          # 900101-1****** (생년월일 + 성별자리만)
     if typ == "PHONE":
@@ -29,8 +31,9 @@ def mask_value(typ: str, text: str) -> str:
 
 def mask_text(text: str, entities: list, categories: list[str]) -> str:
     out, last = [], 0
-    for e in sorted(entities, key=lambda x: x.start):
-        if e.category not in categories:
+    # 시작 위치 순, 같은 위치면 긴 것(문장 단위 민감정보) 먼저 → 이미 가린 구간 안의 항목은 건너뜀
+    for e in sorted(entities, key=lambda x: (x.start, -x.end)):
+        if e.category not in categories or e.start < last:
             continue
         out.append(text[last:e.start])
         out.append(mask_value(e.type, e.text))

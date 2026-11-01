@@ -4,3 +4,5 @@ python-multipart
 pypdf
 python-docx
 cryptography
+openai
+python-dotenv
