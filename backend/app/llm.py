@@ -31,6 +31,11 @@ def model_name() -> str:
     return os.getenv("OPENAI_MODEL", "gpt-5-mini")
 
 
+def explain_model() -> str:
+    """판정 설명 생성용 모델. 설명은 판정에 영향이 없으므로 더 빠른 모델로 따로 바꿔 시험할 수 있다."""
+    return os.getenv("EXPLAIN_MODEL") or model_name()
+
+
 _client = None
 
 
@@ -44,14 +49,14 @@ def _get_client():
     return _client
 
 
-def complete_json(system: str, user: str, max_tokens: int = 4000, max_cap: int = 12000) -> dict:
+def complete_json(system: str, user: str, max_tokens: int = 4000, max_cap: int = 12000, model: str | None = None) -> dict:
     """프롬프트를 보내고 JSON 객체 하나를 돌려받는다. 실패하면 LLMError.
     추론 모델이 숨은 추론에 한도를 다 써서 빈 답변이 오면, 한도를 2배로 늘려 다시 시도한다(max_cap까지)."""
     from openai import APIError
     while True:
         try:
             res = _get_client().chat.completions.create(
-                model=model_name(),
+                model=model or model_name(),
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
                 max_completion_tokens=max_tokens,
             )

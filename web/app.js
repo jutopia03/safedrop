@@ -76,24 +76,35 @@ async function doJudge() {
   $('btnSend').disabled = !d.decisions.some((x) => x.action !== 'BLOCK');
 }
 
-// 판정은 먼저 보여주고, AI 설명(검색 근거 + 인용 검증)은 도착하는 대로 채운다
+// 판정은 먼저 보여주고, AI 설명(검색 근거 + 인용 검증)은 도착하는 대로 채운다.
+// 경과 시간을 보여주고, 90초가 넘으면 기다리기를 멈추고 기본 설명을 유지한다.
+const EXPLAIN_TIMEOUT_MS = 90000;
 async function loadExplanations(jid) {
-  document.querySelectorAll('.explain .tag').forEach((t) => { t.textContent = '기본 설명 · AI 설명 생성 중…'; });
+  const tags = () => document.querySelectorAll('.explain .tag');
+  const t0 = Date.now();
+  const tick = setInterval(() => tags().forEach((t) => {
+    t.textContent = `기본 설명 · AI 설명 생성 중… (${Math.round((Date.now() - t0) / 1000)}초)`; }), 1000);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), EXPLAIN_TIMEOUT_MS);
   try {
-    const r = await fetch(`/api/explain/${jid}`);
-    if (!r.ok) throw new Error(r.status);
+    const r = await fetch(`/api/explain/${jid}`, { signal: ctrl.signal });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const ex = await r.json();
+    clearInterval(tick);
     for (const [rid, e] of Object.entries(ex)) {
       const box = document.querySelector(`#res-${rid} .explain`);
       if (box) box.outerHTML = renderExplain(e);
     }
   } catch (e) {
-    document.querySelectorAll('.explain .tag').forEach((t) => { t.textContent = '기본 설명'; });
-  }
+    clearInterval(tick);
+    const why = e.name === 'AbortError' ? 'AI 응답 지연(90초 초과)' : `AI 설명 오류(${e.message})`;
+    tags().forEach((t) => { t.textContent = `기본 설명 · ${why}`; });
+  } finally { clearTimeout(timer); }
 }
 
 function renderExplain(ex) {
-  return `<div class="explain ${ex.source}"><span class="tag">${ex.source === 'ai' ? 'AI 설명 · 인용 검증 통과' : '기본 설명'}</span>
+  const took = ex.seconds != null ? ` (${ex.seconds}초${ex.model ? ', ' + esc(ex.model) : ''})` : '';
+  return `<div class="explain ${ex.source}"><span class="tag">${ex.source === 'ai' ? 'AI 설명 · 인용 검증 통과' : '기본 설명'}${took}</span>
       ${esc(ex.text)}${ex.problems?.length ? `<div class="why">AI 설명 미사용 사유: ${esc(ex.problems.join(', '))}</div>` : ''}</div>`;
 }
 

@@ -97,7 +97,7 @@ def explain(decisions: list[dict], ask=None, use_llm: bool = True) -> None:
                       f"  파일 속 정보: {found}\n  처리 결과: {ACTION_KO[d['action']]}\n"
                       f"  필수 인용 조항: {', '.join(sorted({r['clause'] for r in d['reasons']}))}\n  검색된 조항:\n{docs}")
     try:
-        data = ask(SYSTEM, "\n".join(blocks)) if ask else llm.complete_json(SYSTEM, "\n".join(blocks), max_tokens=6000)
+        data = ask(SYSTEM, "\n".join(blocks)) if ask else llm.complete_json(SYSTEM, "\n".join(blocks), max_tokens=6000, model=llm.explain_model())
     except llm.LLMError as e:
         for d in targets:
             d["explanation"]["problems"] = [f"AI 설명 실패: {e}"]

@@ -128,7 +128,12 @@ async def explain_later(jid: str):
     if not item:
         raise HTTPException(404, "검사 결과가 만료됨 (다시 검사하세요)")
     decisions = item[1]
+    t0 = time.time()
     await run_in_threadpool(explain, decisions)
+    took = round(time.time() - t0, 1)
+    for d in decisions:
+        d["explanation"]["seconds"] = took        # 화면에 실제 걸린 시간 표시 (속도 근거)
+        d["explanation"]["model"] = llm.explain_model()
     return {d["recipient"]["id"]: d["explanation"] for d in decisions}
 
 
