@@ -39,3 +39,8 @@ pre { background: #f7f7f9; padding: 8px; border-radius: 8px; white-space: pre-wr
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 td, th { border-bottom: 1px solid var(--line); padding: 6px 4px; text-align: left; vertical-align: top; }
 .found { font-size: 13px; color: var(--sub); }
+.explain { margin: 8px 0 4px; padding: 8px 10px; background: #f4f6ff; border-radius: 8px; font-size: 14px; line-height: 1.5; }
+.explain.template { background: #f6f6f6; }
+.explain .tag { display: inline-block; font-size: 11px; font-weight: 700; color: var(--primary); margin-right: 6px; }
+.explain.template .tag { color: var(--sub); }
+.explain .why { font-size: 12px; color: var(--sub); margin-top: 4px; }

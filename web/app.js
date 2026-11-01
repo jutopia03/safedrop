@@ -79,11 +79,14 @@ function renderDecision(x) {
   const reasons = x.reasons.map((r) =>
     `<li>${LABEL.category[r.category]} ${r.category === 'UNREADABLE' ? '' : r.count + '건'} → <b>${LABEL.action[r.action]}</b>
       <span class="clause">[${r.clause}] ${esc(r.clause_text)}</span></li>`).join('') || '<li>탐지된 개인정보 없음</li>';
+  const ex = x.explanation;
+  const exBox = ex ? `<div class="explain ${ex.source}"><span class="tag">${ex.source === 'ai' ? 'AI 설명 · 인용 검증 통과' : '기본 설명'}</span>
+      ${esc(ex.text)}${ex.problems?.length ? `<div class="why">AI 설명 미사용 사유: ${esc(ex.problems.join(', '))}</div>` : ''}</div>` : '';
   const preview = x.masked_preview ? `<details><summary>마스킹본 미리보기</summary><pre>${esc(x.masked_preview)}</pre></details>` : '';
   return `<div class="res ${x.action}" id="res-${x.recipient.id}">
     <div class="head"><div><b>${esc(x.recipient.name)}</b> · ${esc(x.recipient.dept)} <span class="dept">(${LABEL.rclass[x.recipient_class]})</span></div>
       <span class="badge ${x.action}">${LABEL.action[x.action]}</span></div>
-    <ul class="reasons">${reasons}</ul>${preview}<div class="status"></div></div>`;
+    ${exBox}<ul class="reasons">${reasons}</ul>${preview}<div class="status"></div></div>`;
 }
 
 async function doSend() {

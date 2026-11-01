@@ -4,14 +4,18 @@
       → 전송 허가 토큰(permit) → P2P 전송(신호 중계) 또는 서버 중계(transfer) → 감사 로그
 """
 import json
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import Response
+from fastapi.responses import PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import llm, permit, transfer
 from .detect import detect
+from .explain import explain
 from .extract import extract_text
 from .mask import mask_text
 from .policy import judge
@@ -78,6 +82,7 @@ async def judge_file(file: UploadFile = File(...), sender_id: str = Form(...), r
     for d in decisions:
         if d["action"] == "MASK":
             d["masked_preview"] = mask_text(ex.text, entities, d["mask_categories"])[:2000]
+    explain(decisions)   # v2: 검색된 조항 근거로 AI 설명 생성 + 인용 검증 (실패 시 기본 설명)
     return {"filename": file.filename, "readable": ex.readable, "reason": ex.reason,
             "entities": [e.to_dict() for e in entities], "llm": llm_info, "decisions": decisions}
 
@@ -126,6 +131,26 @@ async def receipt(request: Request):
     transfer.audit("received", tid=body.get("tid"), recipient=body.get("recipient"),
                    verified=bool(body.get("verified")), via=body.get("via"), detail=body.get("detail", ""))
     return {"ok": True}
+
+
+_last_eval = {"t": 0.0}
+
+
+@app.get("/api/eval/{name}", response_class=PlainTextResponse)
+def run_eval(name: str):
+    """성능 측정 스크립트를 서버에서 실행하고 결과를 글자로 돌려준다 (배포 환경의 API 키로 측정하기 위함).
+    detect: 정규식 탐지 / retrieval: 조항 검색 / sensitive: AI 민감정보 판단 / explain: AI 설명 인용 검증"""
+    scripts = {"detect": "eval_detect.py", "retrieval": "eval_retrieval.py",
+               "sensitive": "eval_sensitive.py", "explain": "eval_explain.py"}
+    if name not in scripts:
+        raise HTTPException(404, f"가능한 측정: {', '.join(scripts)}")
+    if name in ("sensitive", "explain"):        # AI를 부르는 측정만 연속 호출 제한 (크레딧 보호)
+        if time.time() - _last_eval["t"] < 30:
+            raise HTTPException(429, "30초 후 다시 시도하세요")
+        _last_eval["t"] = time.time()
+    r = subprocess.run([sys.executable, str(ROOT / "scripts" / scripts[name])], capture_output=True,
+                       text=True, timeout=300, cwd=ROOT)
+    return r.stdout + (("\n[stderr]\n" + r.stderr) if r.returncode else "")
 
 
 @app.get("/api/audit")
