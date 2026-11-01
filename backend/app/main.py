@@ -6,8 +6,11 @@
 import json
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from fastapi.staticfiles import StaticFiles
+
+from .detect import detect
+from .extract import extract_text
 
 ROOT = Path(__file__).resolve().parents[2]  # 저장소 루트
 DATA = ROOT / "data" / "company"
@@ -34,6 +37,20 @@ def health():
 def people():
     """화면에서 수신자를 고를 때 쓰는 가상 조직도."""
     return load_json("org.json")["people"]
+
+
+@app.post("/api/scan")
+async def scan(file: UploadFile = File(...)):
+    """S2: 파일에서 텍스트를 뽑고 개인정보를 탐지한다. 원본은 메모리에서만 다루고 저장하지 않는다."""
+    data = await file.read()
+    ex = extract_text(file.filename, data)
+    entities = detect(ex.text) if ex.readable else []
+    return {
+        "filename": file.filename,
+        "readable": ex.readable,
+        "reason": ex.reason,
+        "entities": [e.to_dict() for e in entities],
+    }
 
 
 # 정적 화면(web/)은 API 라우트 뒤에 마운트한다.
