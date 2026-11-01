@@ -9,6 +9,8 @@
 
 판정은 규칙표가 이미 끝냈다. 이 단계가 실패해도 판정은 바뀌지 않고, 설명만 기본 문장으로 바뀐다.
 """
+import re
+
 from . import llm
 from .policy import clauses
 from .retrieve import query_for, search
@@ -49,6 +51,12 @@ def _retrieved(d: dict) -> list[str]:
     return ids
 
 
+def _norm(s: str) -> str:
+    """인용 비교용: [조항ID] 머리표, 공백, 문장부호를 지우고 비교한다. (표기 차이는 허용, 단어가 바뀌면 불일치)"""
+    s = re.sub(r"\[\d+-\d+\]", "", s)
+    return re.sub(r"[^0-9A-Za-z가-힣]", "", s)
+
+
 def verify(d: dict, retrieved: list[str], exp: dict) -> list[str]:
     """검증 실패 사유 목록 (비어 있으면 통과)."""
     problems = []
@@ -61,8 +69,8 @@ def verify(d: dict, retrieved: list[str], exp: dict) -> list[str]:
         cid, quote = c.get("id"), (c.get("quote") or "").strip()
         if cid not in retrieved:
             problems.append(f"검색되지 않은 조항 인용({cid})")
-        elif not quote or quote not in clauses().get(cid, ""):
-            problems.append(f"인용 문구가 원문과 다름({cid})")
+        elif not _norm(quote) or _norm(quote) not in _norm(clauses().get(cid, "")):
+            problems.append(f"인용 문구가 원문과 다름({cid}: \"{quote[:40]}\")")
     required = {r["clause"] for r in d["reasons"]}
     if not required <= cited_ids:
         problems.append(f"필수 조항 누락({', '.join(sorted(required - cited_ids))})")
@@ -89,7 +97,7 @@ def explain(decisions: list[dict], ask=None) -> None:
                       f"  파일 속 정보: {found}\n  처리 결과: {ACTION_KO[d['action']]}\n"
                       f"  필수 인용 조항: {', '.join(sorted({r['clause'] for r in d['reasons']}))}\n  검색된 조항:\n{docs}")
     try:
-        data = (ask or llm.complete_json)(SYSTEM, "\n".join(blocks))
+        data = ask(SYSTEM, "\n".join(blocks)) if ask else llm.complete_json(SYSTEM, "\n".join(blocks), max_tokens=6000)
     except llm.LLMError as e:
         for d in targets:
             d["explanation"]["problems"] = [f"AI 설명 실패: {e}"]

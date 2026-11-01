@@ -40,25 +40,30 @@ def _get_client():
         from openai import OpenAI
         _client = OpenAI(api_key=os.environ["OPENAI_API_KEY"],
                          base_url=os.getenv("OPENAI_BASE_URL") or None,
-                         timeout=40, max_retries=1)
+                         timeout=90, max_retries=1)
     return _client
 
 
-def complete_json(system: str, user: str, max_tokens: int = 3000) -> dict:
-    """프롬프트를 보내고 JSON 객체 하나를 돌려받는다. 실패하면 LLMError."""
+def complete_json(system: str, user: str, max_tokens: int = 4000, max_cap: int = 12000) -> dict:
+    """프롬프트를 보내고 JSON 객체 하나를 돌려받는다. 실패하면 LLMError.
+    추론 모델이 숨은 추론에 한도를 다 써서 빈 답변이 오면, 한도를 2배로 늘려 다시 시도한다(max_cap까지)."""
     from openai import APIError
-    try:
-        res = _get_client().chat.completions.create(
-            model=model_name(),
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            max_completion_tokens=max_tokens,
-        )
-    except APIError as e:
-        raise LLMError(f"LLM 호출 실패: {getattr(e, 'status_code', '')} {getattr(e, 'message', e)}") from e
-    choice = res.choices[0]
-    content = choice.message.content or ""
-    if not content and choice.finish_reason == "length":
-        raise LLMError("출력 토큰 한도 부족(빈 답변)")
+    while True:
+        try:
+            res = _get_client().chat.completions.create(
+                model=model_name(),
+                messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+                max_completion_tokens=max_tokens,
+            )
+        except APIError as e:
+            raise LLMError(f"LLM 호출 실패: {getattr(e, 'status_code', '')} {getattr(e, 'message', e)}") from e
+        choice = res.choices[0]
+        content = choice.message.content or ""
+        if content or choice.finish_reason != "length":
+            break
+        if max_tokens * 2 > max_cap:
+            raise LLMError(f"출력 토큰 한도 부족(빈 답변, 한도 {max_tokens})")
+        max_tokens *= 2
     m = re.search(r"\{.*\}", content, re.S)  # 앞뒤 설명이 붙어 와도 JSON 부분만 꺼낸다
     if not m:
         raise LLMError("JSON 형식 응답이 아님")
