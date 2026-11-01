@@ -1,0 +1,12 @@
+[
+  {
+    "file": "doc00_예시_인사발령.txt",
+    "note": "형식 예시용 문서 (팀장 작성). 팀원은 doc01부터 추가",
+    "entities": [
+      {"category": "UNIQUE_ID", "type": "RRN", "text": "950312-2345678"},
+      {"category": "CONTACT", "type": "PHONE", "text": "010-9876-5432"},
+      {"category": "CONTACT", "type": "EMAIL", "text": "minseo.k@example.com"},
+      {"category": "FINANCIAL", "type": "ACCOUNT", "text": "110-234-567890"}
+    ]
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "_설명": "가상 기업 조직도. privileged=true 는 개인정보취급자(규정 2-1). external=true 는 외부 수신자(규정 2-6). 모든 인물은 가상입니다.",
+  "company": "코데브솔루션(주) (가상)",
+  "departments": ["인사팀", "정보보호팀", "영업팀", "개발팀", "협력사"],
+  "people": [
+    {"id": "u01", "name": "김하늘", "dept": "인사팀",     "title": "팀장", "privileged": true,  "external": false},
+    {"id": "u02", "name": "이도윤", "dept": "인사팀",     "title": "사원", "privileged": true,  "external": false},
+    {"id": "u03", "name": "박서준", "dept": "정보보호팀", "title": "팀장", "privileged": true,  "external": false},
+    {"id": "u04", "name": "최유나", "dept": "영업팀",     "title": "팀장", "privileged": false, "external": false},
+    {"id": "u05", "name": "정민재", "dept": "영업팀",     "title": "대리", "privileged": false, "external": false},
+    {"id": "u06", "name": "한지우", "dept": "영업팀",     "title": "사원", "privileged": false, "external": false},
+    {"id": "u07", "name": "오세훈", "dept": "개발팀",     "title": "팀장", "privileged": false, "external": false},
+    {"id": "u08", "name": "윤가은", "dept": "개발팀",     "title": "사원", "privileged": false, "external": false},
+    {"id": "x01", "name": "강태호", "dept": "협력사",     "title": "외부 담당자", "privileged": false, "external": true},
+    {"id": "x02", "name": "송미래", "dept": "협력사",     "title": "외부 담당자", "privileged": false, "external": true}
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "_설명": "규칙표: 정보 유형(category) x 수신자 유형(recipient_class) -> 조치(action) + 근거 조항(clause). 판정은 LLM이 아니라 이 표로 결정한다.",
+  "actions_severity": ["ALLOW", "MASK", "BLOCK"],
+  "recipient_classes": {
+    "PRIVILEGED": "개인정보취급자 (사내)",
+    "SAME_DEPT": "발신자와 같은 부서 임직원",
+    "INTERNAL": "다른 부서 임직원",
+    "EXTERNAL": "외부 수신자 (협력사 등)"
+  },
+  "categories": {
+    "UNIQUE_ID": "고유식별정보 (주민등록번호, 외국인등록번호, 여권번호, 운전면허번호)",
+    "FINANCIAL": "금융정보 (카드번호, 계좌번호)",
+    "CONTACT": "연락처정보 (휴대전화번호, 이메일)",
+    "SENSITIVE": "민감정보 (건강 등) - v1에서 LLM이 탐지",
+    "UNREADABLE": "내용 확인 불가 파일 (스캔 이미지 등)"
+  },
+  "rules": {
+    "UNIQUE_ID": {
+      "PRIVILEGED": {"action": "ALLOW", "clause": "3-1"},
+      "SAME_DEPT":  {"action": "MASK",  "clause": "3-2"},
+      "INTERNAL":   {"action": "MASK",  "clause": "3-2"},
+      "EXTERNAL":   {"action": "BLOCK", "clause": "3-3"}
+    },
+    "FINANCIAL": {
+      "PRIVILEGED": {"action": "ALLOW", "clause": "4-1"},
+      "SAME_DEPT":  {"action": "MASK",  "clause": "4-2"},
+      "INTERNAL":   {"action": "MASK",  "clause": "4-2"},
+      "EXTERNAL":   {"action": "BLOCK", "clause": "4-3"}
+    },
+    "CONTACT": {
+      "PRIVILEGED": {"action": "ALLOW", "clause": "5-1"},
+      "SAME_DEPT":  {"action": "ALLOW", "clause": "5-1"},
+      "INTERNAL":   {"action": "ALLOW", "clause": "5-1"},
+      "EXTERNAL":   {"action": "MASK",  "clause": "5-2"}
+    },
+    "SENSITIVE": {
+      "PRIVILEGED": {"action": "ALLOW", "clause": "6-1"},
+      "SAME_DEPT":  {"action": "MASK",  "clause": "6-2"},
+      "INTERNAL":   {"action": "BLOCK", "clause": "6-3"},
+      "EXTERNAL":   {"action": "BLOCK", "clause": "6-3"}
+    },
+    "UNREADABLE": {
+      "PRIVILEGED": {"action": "BLOCK", "clause": "7-1"},
+      "SAME_DEPT":  {"action": "BLOCK", "clause": "7-1"},
+      "INTERNAL":   {"action": "BLOCK", "clause": "7-1"},
+      "EXTERNAL":   {"action": "BLOCK", "clause": "7-1"}
+    }
+  }
+}

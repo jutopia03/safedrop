@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SafeDrop</title>
+</head>
+<body>
+  <h1>SafeDrop</h1>
+  <p>민감정보 판단 AI 기반 사내 파일 전송 (개발 중 - S1 뼈대)</p>
+  <pre id="health">서버 상태 확인 중...</pre>
+  <script>
+    fetch('/api/health').then(r => r.json())
+      .then(d => document.getElementById('health').textContent = JSON.stringify(d, null, 2))
+      .catch(e => document.getElementById('health').textContent = '서버 연결 실패: ' + e);
+  </script>
+</body>
+</html>
