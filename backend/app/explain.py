@@ -34,7 +34,8 @@ SYSTEM = """너는 회사 정보보호 담당자다. 직원이 파일을 보내�
 - 아직 보내기 전 '검사 결과'이므로 "전송됩니다/차단됩니다"처럼 쓰고, "전송했습니다"처럼 끝난 일로 쓰지 않는다.
 - citations: '필수 인용 조항'을 모두, '검색된 조항' 중에서만, 조항 원문에서 글자 그대로 복사해 넣는다.
 반드시 아래 JSON 하나로만 답한다:
-{"explanations":[{"rid":"u01","text":"설명 2문장","citations":[{"id":"6-3","quote":"조항 원문 일부"}]}]}"""
+{"explanations":[{"rid":"<요청의 rid 그대로>","text":"<설명 2문장>","citations":[{"id":"<조항 ID>","quote":"<검색된 조항 원문에서 그대로 복사>"}]}]}
+- 요청에 나온 rid **모두**에 대해 하나씩 답한다 (빠뜨리지 않는다). 꺾쇠(<>) 안은 형식 안내일 뿐 그대로 쓰지 않는다."""
 
 MAX_TEXT = 200   # 설명 길이 상한 (조항 나열 방지)
 
@@ -124,23 +125,16 @@ def explain(decisions: list[dict], ask=None, use_llm: bool = True) -> None:
     targets = [d for d in decisions if d["reasons"]]
     if not targets or not use_llm or (ask is None and not llm.enabled()):
         return
-    blocks = []
-    for d in targets:
-        rid = d["recipient"]["id"]
-        found = ", ".join(f"{CAT_KO[r['category']]} {r.get('count', 1)}건" for r in d["reasons"])
-        decisive = ", ".join(f"{CAT_KO[r['category']]} → {ACTION_KO[r['action']]} ({r['clause']})" for r in _decisive(d))
-        docs = "\n".join(f"    [{cid}] {clauses()[cid]}" for cid in retrieved[rid])
-        blocks.append(f"- rid={rid} / {d['recipient']['name']} ({CLASS_KO[d['recipient_class']]})\n"
-                      f"  파일 속 정보: {found}\n  처리 결과: {ACTION_KO[d['action']]}\n"
-                      f"  결정 이유: {decisive}\n  제안 가능한 대안: {_alternatives(d) or '(허용이므로 없음)'}\n"
-                      f"  필수 인용 조항: {', '.join(sorted({r['clause'] for r in d['reasons']}))}\n  검색된 조항:\n{docs}")
-    try:
-        data = ask(SYSTEM, "\n".join(blocks)) if ask else llm.complete_json(SYSTEM, "\n".join(blocks), max_tokens=6000, model=llm.explain_model())
-    except llm.LLMError as e:
-        for d in targets:
-            d["explanation"]["problems"] = [f"AI 설명 실패: {e}"]
+    data = _ask_llm(targets, retrieved, ask)
+    if data is None:
         return
-    by_rid = {str(x.get("rid")): x for x in data.get("explanations", [])}
+    by_rid = {str(x.get("rid")): x for x in data.get("explanations", []) if isinstance(x, dict)}
+    missing = [d for d in targets if d["recipient"]["id"] not in by_rid]
+    if missing:
+        # 수신자를 빠뜨리거나 예시의 rid를 베껴 쓰면(작은 로컬 모델에서 흔함) 빠진 수신자만 한 번 더 묻는다
+        again = _ask_llm(missing, retrieved, ask, quiet=True)
+        if again:
+            by_rid.update({str(x.get("rid")): x for x in again.get("explanations", []) if isinstance(x, dict)})
     for d in targets:
         rid = d["recipient"]["id"]
         exp = by_rid.get(rid)
@@ -153,3 +147,24 @@ def explain(decisions: list[dict], ask=None, use_llm: bool = True) -> None:
         else:
             d["explanation"].update(text=exp["text"].strip(), source="ai",
                                     citations=[c["id"] for c in exp["citations"]])
+
+
+def _ask_llm(targets: list[dict], retrieved: dict, ask=None, quiet: bool = False) -> dict | None:
+    """수신자 묶음 하나에 대한 설명 요청. 실패하면 각 수신자에 사유를 남기고 None."""
+    blocks = []
+    for d in targets:
+        rid = d["recipient"]["id"]
+        found = ", ".join(f"{CAT_KO[r['category']]} {r.get('count', 1)}건" for r in d["reasons"])
+        decisive = ", ".join(f"{CAT_KO[r['category']]} → {ACTION_KO[r['action']]} ({r['clause']})" for r in _decisive(d))
+        docs = "\n".join(f"    [{cid}] {clauses()[cid]}" for cid in retrieved[rid])
+        blocks.append(f"- rid={rid} / {d['recipient']['name']} ({CLASS_KO[d['recipient_class']]})\n"
+                      f"  파일 속 정보: {found}\n  처리 결과: {ACTION_KO[d['action']]}\n"
+                      f"  결정 이유: {decisive}\n  제안 가능한 대안: {_alternatives(d) or '(허용이므로 없음)'}\n"
+                      f"  필수 인용 조항: {', '.join(sorted({r['clause'] for r in d['reasons']}))}\n  검색된 조항:\n{docs}")
+    try:
+        return ask(SYSTEM, "\n".join(blocks)) if ask else llm.complete_json(SYSTEM, "\n".join(blocks), max_tokens=6000, model=llm.explain_model())
+    except llm.LLMError as e:
+        if not quiet:
+            for d in targets:
+                d["explanation"]["problems"] = [f"AI 설명 실패: {e}"]
+        return None

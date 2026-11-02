@@ -124,3 +124,30 @@ def test_person_mention_without_topic_word_is_candidate():
 def test_generic_honorifics_are_not_person_mentions():
     from backend.app.sensitive import candidates
     assert candidates("고객님께서는 내일까지 회신 바랍니다.\n임직원 여러분은 공지를 확인하세요.") == []
+
+
+# ---- 작은 로컬 모델 대응 (Ollama 측정에서 발견) ----
+def test_missing_recipients_are_asked_again_once():
+    C = clauses()
+    d = judge(detect("주민등록번호 950312-2345678"), True, "u05", ["u02", "x01"])
+    calls = []
+
+    def fake(system, user):
+        calls.append(user)
+        if len(calls) == 1:   # 첫 응답: x01만 답하고 u02는 빠뜨림
+            return {"explanations": [{"rid": "x01", "text": "외부 수신자에게는 전송이 차단됩니다.",
+                                      "citations": [{"id": "3-3", "quote": C["3-3"]}]}]}
+        return {"explanations": [{"rid": "u02", "text": "개인정보취급자에게는 원본이 허용됩니다.",
+                                  "citations": [{"id": "3-1", "quote": C["3-1"]}]}]}
+    explain(d, ask=fake)
+    assert len(calls) == 2 and "rid=u02" in calls[1] and "rid=x01" not in calls[1]
+    assert all(x["explanation"]["source"] == "ai" for x in d)
+
+
+def test_json_missing_closing_brace_is_repaired(monkeypatch):
+    from types import SimpleNamespace
+    msg = SimpleNamespace(content='{"explanations":[{"rid":"t1","text":"차단됩니다."}]')
+    fake = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+        create=lambda **k: SimpleNamespace(choices=[SimpleNamespace(message=msg, finish_reason="stop")]))))
+    monkeypatch.setattr(llm, "_get_client", lambda: fake)
+    assert llm.complete_json("s", "u") == {"explanations": [{"rid": "t1", "text": "차단됩니다."}]}

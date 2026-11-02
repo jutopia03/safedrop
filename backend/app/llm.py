@@ -85,7 +85,11 @@ def complete_json(system: str, user: str, max_tokens: int = 4000, max_cap: int =
     m = re.search(r"\{.*\}", content, re.S)  # 앞뒤 설명이 붙어 와도 JSON 부분만 꺼낸다
     if not m:
         raise LLMError("JSON 형식 응답이 아님")
-    try:
-        return json.loads(m.group())
-    except json.JSONDecodeError as e:
-        raise LLMError(f"JSON 해석 실패: {e}") from e
+    raw = m.group()
+    # 작은 로컬 모델은 마지막 괄호를 빠뜨리는 일이 잦다 → 닫는 괄호만 덧붙여 다시 시도 (내용은 고치지 않음)
+    for tail in ("", "}", "]}", "}]}", "\"}]}"):
+        try:
+            return json.loads(raw + tail)
+        except json.JSONDecodeError as e:
+            err = e
+    raise LLMError(f"JSON 해석 실패: {err}")
