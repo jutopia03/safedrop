@@ -45,8 +45,16 @@ def _get_client():
         from openai import OpenAI
         _client = OpenAI(api_key=os.environ["OPENAI_API_KEY"],
                          base_url=os.getenv("OPENAI_BASE_URL") or None,
-                         timeout=90, max_retries=1)
+                         timeout=float(os.getenv("LLM_TIMEOUT", "90")), max_retries=1)
     return _client
+
+
+def _token_param() -> str:
+    """출력 한도 파라미터 이름. OpenAI·코디세이는 max_completion_tokens, Ollama 등 로컬 서버는 max_tokens."""
+    if os.getenv("LLM_TOKEN_PARAM"):
+        return os.environ["LLM_TOKEN_PARAM"]
+    base = os.getenv("OPENAI_BASE_URL") or ""
+    return "max_completion_tokens" if (not base or "codyssey" in base or "openai.com" in base) else "max_tokens"
 
 
 def complete_json(system: str, user: str, max_tokens: int = 4000, max_cap: int = 12000, model: str | None = None) -> dict:
@@ -58,7 +66,7 @@ def complete_json(system: str, user: str, max_tokens: int = 4000, max_cap: int =
             res = _get_client().chat.completions.create(
                 model=model or model_name(),
                 messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-                max_completion_tokens=max_tokens,
+                **{_token_param(): max_tokens},
             )
         except APIError as e:
             raise LLMError(f"LLM 호출 실패: {getattr(e, 'status_code', '')} {getattr(e, 'message', e)}") from e
@@ -69,6 +77,7 @@ def complete_json(system: str, user: str, max_tokens: int = 4000, max_cap: int =
         if max_tokens * 2 > max_cap:
             raise LLMError(f"출력 토큰 한도 부족(빈 답변, 한도 {max_tokens})")
         max_tokens *= 2
+    content = re.sub(r"<think>.*?</think>", "", content, flags=re.S)  # 로컬 추론 모델(qwen3 등)의 생각 과정 제거
     m = re.search(r"\{.*\}", content, re.S)  # 앞뒤 설명이 붙어 와도 JSON 부분만 꺼낸다
     if not m:
         raise LLMError("JSON 형식 응답이 아님")
