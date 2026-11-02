@@ -1,7 +1,7 @@
-# 정규식 탐지 측정: v0 (2026-11-02 18:28)
+# 정규식 탐지 측정: v0 (2026-11-02 20:05)
 
 ```
-정답 파일 2개, 문서 21개
+정답 파일 3개, 문서 28개
   [오탐] doc_최시원_01_인사기록카드.txt: EMAIL hr@codev.example
   [오탐] doc_최시원_02_CS티켓_가맹점정산지연.txt: ACCOUNT 20261029160012
   [오탐] doc_최시원_02_CS티켓_가맹점정산지연.txt: EMAIL cx@codev.example
@@ -29,16 +29,28 @@
   [오탐] doc_최시원_17_출장비_정산서.pdf: EMAIL finance@codev.example
   [놓침] doc_최시원_18_스캔PDF_입사지원서.pdf: PASSPORT M71839264
   [오탐] doc_최시원_20_서버정기점검_공지.docx: EMAIL infra-oncall@codev.example
+  [오탐] doc_이태우_02_개발장애보고.txt: ACCOUNT 20261102143840
+  [오탐] doc_이태우_02_개발장애보고.txt: EMAIL dev-oncall@codev.example
+  [오탐] doc_이태우_05_함정_자산관리대장.txt: RRN 241105-1000234
+  [오탐] doc_이태우_05_함정_자산관리대장.txt: RRN 241105-1000235
+  [오탐] doc_이태우_05_함정_자산관리대장.txt: RRN 250612-3008817
+  [오탐] doc_이태우_05_함정_자산관리대장.txt: RRN 240930-2104456
+  [오탐] doc_이태우_05_함정_자산관리대장.txt: RRN 240930-2104457
+  [오탐] doc_이태우_05_함정_자산관리대장.txt: RRN 230418-1500021
+  [오탐] doc_이태우_05_함정_자산관리대장.txt: RRN 8801234500311
+  [오탐] doc_이태우_05_함정_자산관리대장.txt: RRN 8801234501080
+  [놓침] doc_이태우_07_스캔_세미나참석자명단.pdf: EMAIL jihwan.ryu@daesung-pm.example
+  [오탐] doc_이태우_07_스캔_세미나참석자명단.pdf: EMAIL jinwan.ryu@daesung-pm.example
 
 유형      정답  찾음  맞음  재현율  정밀도
-ACCOUNT      9    11     9    100%     82%
+ACCOUNT      9    12     9    100%     75%
 CARD         3     0     0      0%       -
 DRIVER       1     1     1    100%    100%
-EMAIL       16    31    15     94%     48%
+EMAIL       23    39    21     91%     54%
 PASSPORT     2     0     0      0%       -
-PHONE       24    21    21     88%    100%
-RRN          5     5     5    100%    100%
-전체          60    69    51     85%     74%
+PHONE       33    30    30     91%    100%
+RRN          5    13     5    100%     38%
+전체          76    95    66     87%     69%
 
 검사 불가로 차단된 문서: 1개 ['doc_최시원_14_흐린스캔_입사서류동의서.png']
 ※ 민감정보(SENSITIVE)는 정규식 대상이 아니라 제외 (v1 LLM 평가에서 측정)
