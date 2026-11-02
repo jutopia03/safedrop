@@ -77,6 +77,10 @@ def complete_json(system: str, user: str, max_tokens: int = 4000, max_cap: int =
         if max_tokens * 2 > max_cap:
             raise LLMError(f"출력 토큰 한도 부족(빈 답변, 한도 {max_tokens})")
         max_tokens *= 2
+    if os.getenv("LLM_RAW_LOG"):   # 측정용: 모델 원본 응답을 남겨 실패 원인을 볼 수 있게 (운영에서는 끔)
+        with open(os.environ["LLM_RAW_LOG"], "a", encoding="utf-8") as f:
+            f.write(json.dumps({"model": model or model_name(), "finish": choice.finish_reason,
+                                "content": content}, ensure_ascii=False) + "\n")
     content = re.sub(r"<think>.*?</think>", "", content, flags=re.S)  # 로컬 추론 모델(qwen3 등)의 생각 과정 제거
     m = re.search(r"\{.*\}", content, re.S)  # 앞뒤 설명이 붙어 와도 JSON 부분만 꺼낸다
     if not m:

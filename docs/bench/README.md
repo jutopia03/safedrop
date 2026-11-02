@@ -28,14 +28,15 @@ python scripts/bench_local.py qwen3:8b
 python scripts/bench_local.py exaone3.5:7.8b
 python scripts/bench_local.py qwen3:14b
 ```
-- 끝나면 `docs/bench/ollama_<모델>.md` 파일이 생깁니다 (정확도, 걸린 시간, GPU 메모리 최고 사용량, 모델 크기가 자동 기록됨)
+- 끝나면 `docs/bench/ollama_<모델>.md`(결과)와 `raw_<모델>.jsonl`(모델 원본 응답, 실패 원인 분석용)이 생깁니다. **두 파일 모두** 올려 주세요
+- 측정 전에 메모리에 남은 모델을 자동으로 내리므로, 모델을 연달아 측정해도 GPU 메모리 수치가 섞이지 않습니다
 - 측정 중에는 게임·영상 등 GPU를 쓰는 프로그램을 꺼 주세요 (메모리 수치가 섞입니다)
 - "민감정보 문장 세트가 아직 없습니다"가 나오면: 설명 품질 측정만 된 것이니, 문장 세트가 합쳐진 뒤 최신 ZIP으로 한 번 더 돌려 주세요
 
 ## 제출 (GitHub 웹, 약 5분)
 [테스트 문서 제출 방법](../../data/testset/SUBMIT.md)과 같은 방식입니다. 업로드 위치만 다릅니다.
 1. https://github.com/jutopia03/safedrop/tree/main/docs/bench 접속 → `Add file → Upload files`
-2. 생성된 `ollama_*.md` 파일들을 끌어다 놓기
+2. 생성된 `ollama_*.md`, `raw_*.jsonl` 파일들을 끌어다 놓기
 3. 커밋 메시지 `로컬 LLM 측정 결과 (모델 N개)` → **Create a new branch** (`bench-영문이름`) → `Propose changes` → `Create pull request`
 4. PR 설명에 한두 줄: 측정하며 느낀 점 (예: 첫 응답이 느렸다, 14b는 메모리가 빠듯했다)
 
