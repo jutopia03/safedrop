@@ -5,7 +5,7 @@
   "people": [
     {"id": "u01", "name": "예서린", "dept": "인사팀",     "title": "팀장", "privileged": true,  "external": false},
     {"id": "u02", "name": "마도현", "dept": "인사팀",     "title": "사원", "privileged": true,  "external": false},
-    {"id": "u03", "name": "표준혁", "dept": "정보보호팀", "title": "팀장", "privileged": true,  "external": false},
+    {"id": "u03", "name": "표준혁", "dept": "정보보호팀", "title": "팀장", "privileged": true,  "external": false, "admin": true},
     {"id": "u04", "name": "석다온", "dept": "영업팀",     "title": "팀장", "privileged": false, "external": false},
     {"id": "u05", "name": "변시우", "dept": "영업팀",     "title": "대리", "privileged": false, "external": false},
     {"id": "u06", "name": "길하람", "dept": "영업팀",     "title": "사원", "privileged": false, "external": false},

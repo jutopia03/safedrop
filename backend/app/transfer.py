@@ -71,8 +71,8 @@ class Signaling:
     def online(self) -> list[str]:
         return list(self.peers)
 
-    async def connect(self, uid: str, ws: WebSocket):
-        await ws.accept()
+    async def register(self, uid: str, ws: WebSocket):
+        """인증을 마친(이미 accept 된) 연결을 사용자 id로 등록한다."""
         self.peers[uid] = ws
         # 접속하지 않은 동안 서버 중계로 도착한 파일이 있으면 알려준다
         for meta in relay_pending(uid):

@@ -41,3 +41,18 @@ def issue(claims: dict) -> str:
     r, s = decode_dss_signature(der)
     # WebCrypto는 DER이 아니라 r||s (각 32바이트) 형식을 기대한다
     return payload + "." + _b64u(r.to_bytes(32, "big") + s.to_bytes(32, "big"))
+
+
+def verify(token: str) -> dict | None:
+    """서버가 발급한 토큰인지(서명) + 만료 전인지 확인하고 내용을 돌려준다. 서버 중계 업로드를 받을 때 쓴다."""
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
+    try:
+        payload, sig = token.split(".")
+        raw = base64.urlsafe_b64decode(sig + "=" * (-len(sig) % 4))
+        der = encode_dss_signature(int.from_bytes(raw[:32], "big"), int.from_bytes(raw[32:], "big"))
+        _private_key.public_key().verify(der, payload.encode(), ec.ECDSA(hashes.SHA256()))
+        claims = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+    except (ValueError, InvalidSignature):
+        return None
+    return claims if claims.get("exp", 0) > time.time() else None

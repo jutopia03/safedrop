@@ -9,13 +9,22 @@
 <body>
   <header>
     <div class="brand"><b>SafeDrop</b><span>안전한 사내 파일 전송 · 가상 기업 코데브솔루션(주)</span></div>
-    <label class="me">나는
-      <select id="me"></select>
+    <div class="me" id="meBox" hidden>
+      <span id="meName"></span>
       <span id="conn" class="dot off" title="연결 상태"></span>
-    </label>
+      <button id="btnLogout" class="small">로그아웃</button>
+    </div>
   </header>
 
-  <main>
+  <section id="login" class="card login" hidden>
+    <h2>로그인</h2>
+    <p class="hint">시연용 가상 직원을 고르고 안내받은 시연 비밀번호를 입력하세요. (탭마다 다른 직원으로 로그인할 수 있습니다)</p>
+    <div class="row"><select id="loginUser"></select></div>
+    <div class="row"><input type="password" id="loginPw" placeholder="시연 비밀번호"><button id="btnLogin" class="primary">로그인</button></div>
+    <p id="loginMsg" class="msg"></p>
+  </section>
+
+  <main id="app" hidden>
     <section id="send" class="card">
       <h2>보내기</h2>
       <div class="row">
@@ -36,10 +45,19 @@
       <div id="inboxList"><p class="empty">아직 받은 파일이 없습니다.</p></div>
     </section>
 
-    <section class="card">
-      <h2>감사 로그 <button id="btnAudit" class="small">새로고침</button></h2>
+    <section class="card" id="auditCard" hidden>
+      <h2>감사 로그 <span class="dept">(정보보호 관리자 전용)</span> <button id="btnAudit" class="small">새로고침</button></h2>
       <p class="hint">파일 내용은 기록하지 않고 누가·누구에게·어떤 조치·근거 조항만 남깁니다 (규정 8-1).</p>
       <div id="audit"></div>
+      <h2 style="margin-top:18px">성능 측정 <span class="dept">(관리자 전용 · 서버가 백그라운드로 실행, 1~2분 뒤 '결과 보기')</span></h2>
+      <div class="row" id="evalBtns">
+        <button class="small" data-eval="detect">정규식 탐지</button>
+        <button class="small" data-eval="retrieval">조항 검색</button>
+        <button class="small" data-eval="sensitive">AI 민감정보 판단</button>
+        <button class="small" data-eval="explain">AI 설명 인용 검증</button>
+        <label class="dept"><input type="checkbox" id="evalRerun"> 다시 측정</label>
+      </div>
+      <pre id="evalOut" class="msg"></pre>
     </section>
   </main>
 

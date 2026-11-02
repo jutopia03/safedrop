@@ -18,32 +18,69 @@ const pendingIce = {}; // 연결 정보가 offer/answer보다 먼저 도착한 �
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const person = (id) => people.find((p) => p.id === id) || { name: id, dept: '' };
 
-// ---------------- 초기화 ----------------
+// ---------------- 로그인·초기화 ----------------
+// 세션 토큰은 탭마다 따로 보관(sessionStorage) → 한 브라우저에서 탭별로 다른 직원으로 시연 가능
+let session = null;
+try { session = sessionStorage.getItem('sd_session'); } catch (e) { /* 저장소를 못 쓰면 매번 로그인 */ }
+let meUser = null;
+
+// 모든 API 호출에 세션 토큰을 붙인다. 401이면 로그인 화면으로.
+async function api(url, opts = {}) {
+  const headers = { ...(opts.headers || {}), ...(session ? { Authorization: `Bearer ${session}` } : {}) };
+  const r = await fetch(url, { ...opts, headers });
+  if (r.status === 401 && url !== '/api/login') showLogin('로그인이 만료되었습니다. 다시 로그인하세요.');
+  return r;
+}
+
 async function init() {
   people = await (await fetch('/api/people')).json();
   pubKey = await crypto.subtle.importKey('jwk', await (await fetch('/api/pubkey')).json(),
     { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-  $('me').innerHTML = people.map((p) => `<option value="${p.id}">${esc(p.name)} (${esc(p.dept)})</option>`).join('');
-  const saved = new URLSearchParams(location.search).get('me');
-  if (saved) $('me').value = saved;
-  $('me').onchange = () => switchUser($('me').value);
+  $('loginUser').innerHTML = people.map((p) => `<option value="${p.id}">${esc(p.name)} · ${esc(p.dept)} ${esc(p.title)}${p.privileged ? ' (취급자)' : ''}${p.admin ? ' (관리자)' : ''}</option>`).join('');
+  $('btnLogin').onclick = doLogin;
+  $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
+  $('btnLogout').onclick = () => { try { sessionStorage.removeItem('sd_session'); } catch (e) {} session = null; ws?.close(); showLogin(''); };
   $('btnJudge').onclick = doJudge;
   $('btnSend').onclick = doSend;
   $('btnAudit').onclick = loadAudit;
+  document.querySelectorAll('#evalBtns button').forEach((b) => b.onclick = () => runEval(b.dataset.eval));
   $('file').onchange = () => { $('btnSend').disabled = true; $('results').innerHTML = ''; };
-  switchUser($('me').value);
-  loadAudit();
+  if (session) {
+    const r = await api('/api/me');
+    if (r.ok) return startApp(await r.json());
+  }
+  showLogin('');
 }
 
-function switchUser(id) {
-  me = id;
-  const p = person(me);
-  $('send').style.display = p.external ? 'none' : '';   // 외부 담당자는 받기만
+function showLogin(msg) {
+  $('app').hidden = true; $('meBox').hidden = true; $('login').hidden = false;
+  $('loginMsg').textContent = msg;
+}
+
+async function doLogin() {
+  $('loginMsg').textContent = '';
+  const r = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid: $('loginUser').value, password: $('loginPw').value }) });
+  const d = await r.json();
+  if (!r.ok) { $('loginMsg').textContent = d.detail || '로그인 실패'; return; }
+  session = d.token;
+  try { sessionStorage.setItem('sd_session', session); } catch (e) {}
+  $('loginPw').value = '';
+  startApp(d.user);
+}
+
+function startApp(user) {
+  meUser = user; me = user.id;
+  $('login').hidden = true; $('app').hidden = false; $('meBox').hidden = false;
+  $('meName').textContent = `${user.name} · ${user.dept}`;
+  $('send').hidden = !!user.external;      // 외부 담당자는 받기만
+  $('auditCard').hidden = !user.admin;      // 감사 로그는 정보보호 관리자만
   $('recipients').innerHTML = people.filter((x) => x.id !== me).map((x) =>
     `<label><input type="checkbox" value="${x.id}"> ${esc(x.name)} <span class="dept">${esc(x.dept)}${x.privileged ? ' · 취급자' : ''}</span></label>`).join('');
   $('results').innerHTML = ''; $('btnSend').disabled = true;
   $('inboxList').innerHTML = '<p class="empty">아직 받은 파일이 없습니다.</p>';
   connectWS();
+  if (user.admin) loadAudit();
 }
 
 // ---------------- 보내기 ----------------
@@ -52,14 +89,14 @@ function formData() {
   const rids = [...document.querySelectorAll('#recipients input:checked')].map((x) => x.value);
   if (!f || !rids.length) { $('sendMsg').textContent = '파일과 수신자를 선택하세요.'; return null; }
   const fd = new FormData();
-  fd.append('file', f); fd.append('sender_id', me); fd.append('recipient_ids', rids.join(','));
+  fd.append('file', f); fd.append('recipient_ids', rids.join(','));   // 발신자는 서버가 세션에서 정한다
   return fd;
 }
 
 async function doJudge() {
   const fd = formData(); if (!fd) return;
   $('sendMsg').textContent = '검사 중... (AI 문맥 판단이 켜져 있으면 10초 안팎 걸립니다)';
-  const r = await fetch('/api/judge', { method: 'POST', body: fd });
+  const r = await api('/api/judge', { method: 'POST', body: fd });
   const d = await r.json();
   if (!r.ok) { $('sendMsg').textContent = d.detail || '오류'; return; }
   const show = (e) => e.category === 'SENSITIVE'
@@ -69,7 +106,7 @@ async function doJudge() {
     ? (d.entities.length ? d.entities.map(show).join(', ') : '탐지된 개인정보 없음')
     : `⚠ ${esc(d.reason)}`;
   const llmLine = d.llm?.llm === 'off' ? 'AI 문맥 판단 꺼짐 (규칙 탐지만)'
-    : `AI 문맥 판단: ${esc(d.llm.llm)} · 후보 문장 ${d.llm.candidates}개${d.llm.cached ? ' (이전 판단 재사용)' : ''}${d.llm.error ? ' · ⚠ AI 판단 실패 → 후보 문장을 민감정보로 간주 (' + esc(d.llm.error) + ')' : ''}`;
+    : `AI 문맥 판단: ${esc(d.llm.llm)} · 후보 문장 ${d.llm.candidates}개${d.llm.cached ? ' (이전 판단 재사용)' : ''}${d.llm.error ? ' · ⚠ AI 판단 실패 → 후보 문장을 민감정보로 간주 (' + esc(d.llm.error) + ')' : ''}${d.llm.injection ? ' · ⚠ AI에게 내리는 지시문 의심(' + d.llm.injection_hits.map(esc).join(' / ') + ') → AI 판단을 쓰지 않고 후보 문장을 민감정보로 간주' : ''}`;
   $('sendMsg').innerHTML = `<span class="found">탐지 결과: ${found}<br>${llmLine}</span>`;
   $('results').innerHTML = d.decisions.map(renderDecision).join('');
   if (d.ai_explain && d.decisions.some((x) => x.reasons.length)) loadExplanations(d.judge_id);
@@ -87,7 +124,7 @@ async function loadExplanations(jid) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), EXPLAIN_TIMEOUT_MS);
   try {
-    const r = await fetch(`/api/explain/${jid}`, { signal: ctrl.signal });
+    const r = await api(`/api/explain/${jid}`, { signal: ctrl.signal });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const ex = await r.json();
     clearInterval(tick);
@@ -124,7 +161,7 @@ async function doSend() {
   const fd = formData(); if (!fd) return;
   $('btnSend').disabled = true;
   $('sendMsg').textContent = '서버가 다시 판정하고 전송 허가 토큰을 발급하는 중...';
-  const r = await fetch('/api/transfer', { method: 'POST', body: fd });
+  const r = await api('/api/transfer', { method: 'POST', body: fd });
   const d = await r.json();
   if (!r.ok) { $('sendMsg').textContent = d.detail || '오류'; return; }
   const original = new Uint8Array(await $('file').files[0].arrayBuffer());
@@ -142,12 +179,13 @@ async function doSend() {
       if (st) st.textContent = `↪ P2P 실패(${e.message}) → 서버 중계로 전송 (수신 즉시 삭제, 최대 10분 보관)`;
     }
   }
-  loadAudit();
+  if (meUser?.admin) loadAudit();
 }
 
 async function sendRelay(tid, item, bytes) {
-  const q = new URLSearchParams({ sender: me, file: item.file, token: item.token });
-  await fetch(`/api/relay/${tid}/${item.recipient.id}?${q}`, { method: 'PUT', body: bytes });
+  const q = new URLSearchParams({ token: item.token });   // 서버가 토큰 서명·발신자=본인 여부를 확인
+  const r = await api(`/api/relay/${tid}/${item.recipient.id}?${q}`, { method: 'PUT', body: bytes });
+  if (!r.ok) throw new Error((await r.json()).detail || '중계 실패');
 }
 
 // ---------------- P2P (WebRTC DataChannel) ----------------
@@ -163,7 +201,7 @@ function sendP2P(to, header, bytes) {
   return new Promise(async (resolve, reject) => {
     const timer = setTimeout(() => { peers[to]?.close(); reject(new Error('시간 초과')); }, P2P_TIMEOUT_MS);
     try {
-      const online = await (await fetch('/api/online')).json();
+      const online = await (await api('/api/online')).json();
       if (!online.includes(to)) { clearTimeout(timer); return reject(new Error('수신자 미접속')); }
       const pc = newPeer(to);
       const dc = pc.createDataChannel('file');
@@ -212,8 +250,8 @@ async function flushIce(from) {
 function connectWS() {
   ws?.close();
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws/${me}`);
-  ws.onopen = () => $('conn').className = 'dot on';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => { ws.send(JSON.stringify({ type: 'auth', token: session })); $('conn').className = 'dot on'; };
   ws.onclose = () => $('conn').className = 'dot off';
   ws.onmessage = async (ev) => {
     const msg = JSON.parse(ev.data);
@@ -225,7 +263,7 @@ function connectWS() {
       else (pendingIce[msg.from] ||= []).push(msg.data);
     }
     else if (msg.type === 'relay') {
-      const r = await fetch(`/api/relay/${msg.data.tid}/${me}`);
+      const r = await api(`/api/relay/${msg.data.tid}/${me}`);
       if (r.ok) await verifyAndShow(msg.data, new Uint8Array(await r.arrayBuffer()), '서버 중계', msg.from);
     }
   };
@@ -251,8 +289,8 @@ async function verifyAndShow(header, bytes, via, from) {
   } catch (e) { checks = [['토큰 형식', false]]; }
   const ok = checks.every(([, v]) => v);
   const detail = checks.filter(([, v]) => !v).map(([k]) => k).join(', ');
-  fetch('/api/receipt', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tid: claims.tid || header?.tid, recipient: me, verified: ok, via, detail }) });
+  api('/api/receipt', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tid: claims.tid || header?.tid, verified: ok, via, detail }) });
 
   const box = $('inboxList');
   if (box.querySelector('.empty')) box.innerHTML = '';
@@ -262,12 +300,14 @@ async function verifyAndShow(header, bytes, via, from) {
       <span class="badge ${ok ? 'ok' : 'bad'}">${ok ? '검증 통과' : '검증 실패'}</span></div>
     <div class="status">${checks.map(([k, v]) => `${v ? '✔' : '✘'} ${k}`).join(' · ')} ${claims.action ? '· 조치: ' + LABEL.action[claims.action] : ''}</div>
     <div class="status">${link}</div></div>`);
-  loadAudit();
+  if (meUser?.admin) loadAudit();
 }
 
 // ---------------- 감사 로그 ----------------
 async function loadAudit() {
-  const rows = await (await fetch('/api/audit?limit=30')).json();
+  const r = await api('/api/audit?limit=30');
+  if (!r.ok) return;
+  const rows = await r.json();
   const name = (id) => (id ? person(id).name : '');
   $('audit').innerHTML = rows.length ? `<table><tr><th>시각</th><th>이벤트</th><th>발신</th><th>수신</th><th>파일</th><th>내용</th></tr>` +
     rows.map((r) => `<tr><td>${r.time.slice(5)}</td><td>${r.event}</td><td>${esc(name(r.sender))}</td><td>${esc(name(r.recipient))}</td>
@@ -276,3 +316,12 @@ async function loadAudit() {
 }
 
 init();
+
+// 관리자 전용 성능 측정: 처음 누르면 시작, 다시 누르면 진행 상황·결과를 보여준다
+async function runEval(name) {
+  const rerun = $('evalRerun').checked ? 1 : 0;
+  $('evalRerun').checked = false;
+  $('evalOut').textContent = `${name} 요청 중...`;
+  const r = await api(`/api/eval/${name}?rerun=${rerun}`);
+  $('evalOut').textContent = await r.text();
+}
