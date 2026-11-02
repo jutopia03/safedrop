@@ -1,7 +1,7 @@
 # 민감정보 문장 세트 작성 가이드 (v1 LLM 평가용)
 
 정규식으로는 못 잡는 **문맥형 개인정보**를 LLM이 얼마나 잘 판단하는지 재기 위한 문장 모음입니다.
-파일: `data/testset/sensitive.json` / 모든 인물·내용은 가짜로.
+파일: `data/testset/docs/sensitive_본인이름.json` (제출 방법은 [SUBMIT.md](SUBMIT.md)) / 모든 인물·내용은 가짜로.
 
 ## 형식
 ```json

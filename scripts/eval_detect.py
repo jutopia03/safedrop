@@ -25,7 +25,12 @@ def key(typ: str, text: str):
 
 
 def main():
-    labels = json.loads((TESTSET / "labels.json").read_text(encoding="utf-8"))
+    # labels.json(예시) + docs/labels_<이름>.json(팀원별 정답 파일 → 각자 PR이 서로 충돌하지 않음)을 합친다
+    files = [TESTSET / "labels.json"] + sorted((TESTSET / "docs").glob("labels_*.json"))
+    labels = []
+    for f in files:
+        labels += json.loads(f.read_text(encoding="utf-8"))
+    print(f"정답 파일 {len(files)}개, 문서 {len(labels)}개")
     tp = Counter(); fp = Counter(); fn = Counter()
     unreadable = []
     for item in labels:

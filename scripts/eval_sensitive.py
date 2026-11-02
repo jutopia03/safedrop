@@ -17,12 +17,16 @@ from backend.app.sensitive import candidates, detect_sensitive  # noqa: E402
 
 
 def main():
-    path = ROOT / "data" / "testset" / "sensitive.json"
-    if not path.exists():
-        sys.exit("data/testset/sensitive.json 이 아직 없습니다 (팀원 C 담당)")
+    base = ROOT / "data" / "testset"
+    files = ([base / "sensitive.json"] if (base / "sensitive.json").exists() else []) + sorted((base / "docs").glob("sensitive_*.json"))
+    if not files:
+        sys.exit("data/testset/docs/sensitive_<이름>.json 문장 세트가 아직 없습니다")
     if not llm.enabled():
         sys.exit("OPENAI_API_KEY 가 설정되지 않았습니다 (.env 확인)")
-    items = json.loads(path.read_text(encoding="utf-8"))
+    items = []
+    for f in files:
+        items += json.loads(f.read_text(encoding="utf-8"))
+    print(f"문장 파일 {len(files)}개, 문장 {len(items)}개")
     tp = fp = fn = tn = dropped = 0
     t0 = time.time()
     for it in items:
