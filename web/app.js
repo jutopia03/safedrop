@@ -144,7 +144,7 @@ async function loadExplanations(jid) {
 function renderExplain(ex) {
   const took = ex.seconds != null ? ` (${ex.seconds}초${ex.model ? ', ' + esc(ex.model) : ''})` : '';
   return `<div class="explain ${ex.source}"><span class="tag">${ex.source === 'ai' ? 'AI 설명 · 인용 검증 통과' : '기본 설명'}${took}</span>
-      ${esc(ex.text)}${ex.problems?.length ? `<div class="why">AI 설명 미사용 사유: ${esc(ex.problems.join(', '))}</div>` : ''}</div>`;
+      ${esc(ex.text)}${ex.citations?.length ? ` <span class="cites">근거 ${ex.citations.map((c) => `[${esc(c)}]`).join(' ')}</span>` : ''}${ex.problems?.length ? `<div class="why">AI 설명 미사용 사유: ${esc(ex.problems.join(', '))}</div>` : ''}</div>`;
 }
 
 function renderDecision(x) {

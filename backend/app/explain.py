@@ -2,10 +2,12 @@
 
 흐름
 1. 검색: 수신자별로 (정보 유형 × 수신자 유형) 검색어를 만들어 관련 조항을 찾는다 (retrieve.py)
-2. 생성: 검색된 조항만 근거로 주고, LLM이 2~3문장 설명 + 가능한 대안을 쓴다 (수신자 전체를 1회 호출로)
+2. 생성: 검색된 조항만 근거로 주고, LLM이 2문장 설명(결과+결정 이유, 대안)을 쓴다 (수신자 전체를 1회 호출로).
+   대안은 규정이 허용하는 것만 코드가 미리 정해 주고, 조항 원문은 본문이 아닌 citations에만 넣게 한다.
 3. 검증: 코드로 확인 → 하나라도 틀리면 기본(템플릿) 설명으로 대체
    ① 인용한 조항 ID가 검색 결과 안에 있는가   ② 규칙표가 정한 조항을 모두 인용했는가
    ③ 인용 문구가 조항 원문에 글자 그대로 있는가   ④ 설명에 실제 조치(허용/마스킹/차단)가 드러나는가
+   ⑤ 200자 이내이고 조항 문장을 본문에 그대로 나열하지 않았는가 (읽기 쉬움)
 
 판정은 규칙표가 이미 끝냈다. 이 단계가 실패해도 판정은 바뀌지 않고, 설명만 기본 문장으로 바뀐다.
 """
@@ -22,24 +24,53 @@ CLASS_KO = {"PRIVILEGED": "개인정보취급자", "SAME_DEPT": "같은 부서 �
 CAT_KO = {"UNIQUE_ID": "고유식별정보", "FINANCIAL": "금융정보", "CONTACT": "연락처정보",
           "SENSITIVE": "민감정보", "UNREADABLE": "내용 확인 불가 파일"}
 
-SYSTEM = """너는 회사 정보보호 담당자다. 직원이 파일을 보내려 할 때, 수신자별 처리 결과를 직원에게 설명한다.
+SYSTEM = """너는 회사 정보보호 담당자다. 직원이 파일을 보내려 할 때, 수신자별 처리 결과를 직원이 한눈에 이해하도록 설명한다.
 규칙:
 - 처리 결과(조치)는 이미 정해져 있다. 바꾸거나 다르게 말하지 않는다.
-- 근거는 반드시 '검색된 조항' 중에서만 인용하고, 인용 문구는 조항 원문에서 글자 그대로 복사한다.
-- '필수 인용 조항'은 반드시 인용한다.
-- 설명은 2~3문장, 존댓말. 아직 보내기 전 '검사 결과'이므로 "전송됩니다/차단됩니다"처럼 쓰고, "전송했습니다/차단했습니다"처럼 이미 끝난 일로 쓰지 않는다.
-- 차단·마스킹이면 직원이 할 수 있는 대안을 한 문장 덧붙이되, 검색된 조항이 허용하는 방법만 제안한다.
-  예) 민감정보·고유식별정보 때문에 차단이면 "해당 내용을 삭제한 파일로 다시 보내기" 또는 "개인정보취급자를 통해 요청하기".
-  규정상 그 수신자에게 금지된 방식(예: 다른 부서에 민감정보 마스킹본 전송)을 제안하지 않는다.
+- text는 **2문장, 150자 이내**, 존댓말.
+  1문장: 처리 결과 + '결정 이유'(결과를 가장 엄격하게 만든 정보)를 쉬운 말로. 예) "공황장애 진단 등 건강 정보가 있어 다른 부서인 길하람님에게는 전송이 차단됩니다(규정 6-3)."
+  2문장: 차단·마스킹이면 직원이 할 수 있는 일. '제안 가능한 대안'에 있는 것만 쓴다. 허용이면 짧은 확인 문장.
+- **조항 문장을 text에 옮겨 적지 않는다.** 조항은 번호만 괄호로 쓴다. 조항 원문은 citations에만 넣는다.
+- 아직 보내기 전 '검사 결과'이므로 "전송됩니다/차단됩니다"처럼 쓰고, "전송했습니다"처럼 끝난 일로 쓰지 않는다.
+- citations: '필수 인용 조항'을 모두, '검색된 조항' 중에서만, 조항 원문에서 글자 그대로 복사해 넣는다.
 반드시 아래 JSON 하나로만 답한다:
-{"explanations":[{"rid":"u01","text":"설명","citations":[{"id":"3-3","quote":"조항 원문 일부"}]}]}"""
+{"explanations":[{"rid":"u01","text":"설명 2문장","citations":[{"id":"6-3","quote":"조항 원문 일부"}]}]}"""
+
+MAX_TEXT = 200   # 설명 길이 상한 (조항 나열 방지)
+
+
+def _decisive(d: dict) -> list[dict]:
+    """최종 조치를 결정한 사유(가장 엄격한 조치와 같은 사유들)."""
+    return [r for r in d["reasons"] if r["action"] == d["action"]]
+
+
+def _alternatives(d: dict) -> str:
+    """규정이 허용하는 범위의 대안 (규칙으로 정함 — LLM이 규정에 없는 방법을 지어내지 않게)."""
+    if d["action"] == "ALLOW":
+        return ""
+    cats = [r["category"] for r in _decisive(d)]
+    if d["action"] == "BLOCK":
+        if "UNREADABLE" in cats:
+            return "글자를 읽을 수 있는 원본 문서나 선명한 스캔으로 다시 보내거나, 정보보호팀에 검토를 요청하세요(7-1)."
+        names = "·".join(CAT_KO[c] for c in cats)
+        return f"{names}를 지운 파일로 다시 검사하면 보낼 수 있습니다."
+    masked = "·".join(CAT_KO[c] for c in d.get("mask_categories") or cats)
+    return f"{masked}만 가린 사본이 전송되며, 나머지 내용은 그대로 전달됩니다."
 
 
 def _template(d: dict) -> str:
-    """LLM 없이 만드는 기본 설명 (항상 정확)."""
-    parts = [f"{CAT_KO[r['category']]}: {ACTION_KO[r['action']]} [{r['clause']}] {r['clause_text']}" for r in d["reasons"]]
-    head = f"{d['recipient']['name']}님은 {CLASS_KO[d['recipient_class']]}이므로 최종 결과는 '{ACTION_KO[d['action']]}'입니다."
-    return head + (" " + " / ".join(parts) if parts else " 탐지된 개인정보가 없습니다.")
+    """LLM 없이 만드는 기본 설명 (항상 정확, 2문장)."""
+    who = f"{d['recipient']['name']}님({CLASS_KO[d['recipient_class']]})"
+    if not d["reasons"]:
+        return f"탐지된 개인정보가 없어 {who}에게 원본 그대로 전송됩니다."
+    dec = _decisive(d)
+    why = "·".join(CAT_KO[r["category"]] for r in dec)
+    ids = ", ".join(sorted({r["clause"] for r in dec}))
+    head = {"ALLOW": f"{why}가 있지만 {who}에게는 규정상 원본 그대로 전송됩니다(규정 {ids}).",
+            "MASK": f"{why} 때문에 {who}에게는 마스킹한 사본으로 전송됩니다(규정 {ids}).",
+            "BLOCK": f"{why} 때문에 {who}에게는 전송이 차단됩니다(규정 {ids})."}[d["action"]]
+    alt = _alternatives(d)
+    return head + (" " + alt if alt else "")
 
 
 def _retrieved(d: dict) -> list[str]:
@@ -76,6 +107,11 @@ def verify(d: dict, retrieved: list[str], exp: dict) -> list[str]:
         problems.append(f"필수 조항 누락({', '.join(sorted(required - cited_ids))})")
     if not any(w in text for w in ACTION_WORDS[d["action"]]):
         problems.append("설명에 실제 조치가 드러나지 않음")
+    if len(text) > MAX_TEXT:
+        problems.append(f"설명이 너무 김({len(text)}자 > {MAX_TEXT}자)")
+    pasted = [cid for cid in retrieved if len(_norm(clauses().get(cid, ""))) >= 15 and _norm(clauses()[cid]) in _norm(text)]
+    if pasted:
+        problems.append(f"조항 문장을 설명에 그대로 나열({', '.join(pasted)})")
     return problems
 
 
@@ -92,9 +128,11 @@ def explain(decisions: list[dict], ask=None, use_llm: bool = True) -> None:
     for d in targets:
         rid = d["recipient"]["id"]
         found = ", ".join(f"{CAT_KO[r['category']]} {r.get('count', 1)}건" for r in d["reasons"])
+        decisive = ", ".join(f"{CAT_KO[r['category']]} → {ACTION_KO[r['action']]} ({r['clause']})" for r in _decisive(d))
         docs = "\n".join(f"    [{cid}] {clauses()[cid]}" for cid in retrieved[rid])
         blocks.append(f"- rid={rid} / {d['recipient']['name']} ({CLASS_KO[d['recipient_class']]})\n"
                       f"  파일 속 정보: {found}\n  처리 결과: {ACTION_KO[d['action']]}\n"
+                      f"  결정 이유: {decisive}\n  제안 가능한 대안: {_alternatives(d) or '(허용이므로 없음)'}\n"
                       f"  필수 인용 조항: {', '.join(sorted({r['clause'] for r in d['reasons']}))}\n  검색된 조항:\n{docs}")
     try:
         data = ask(SYSTEM, "\n".join(blocks)) if ask else llm.complete_json(SYSTEM, "\n".join(blocks), max_tokens=6000, model=llm.explain_model())
