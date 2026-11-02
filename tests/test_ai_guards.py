@@ -112,3 +112,15 @@ def test_unreadable_alternative_points_to_security_team():
     d = judge([], False, "u05", ["u06"])
     explain(d, use_llm=False)
     assert "정보보호팀" in d[0]["explanation"]["text"] and "7-1" in d[0]["explanation"]["text"]
+
+
+# ---- 후보 문장 선별: 주제 단어 + 특정인 언급 (S12) ----
+def test_person_mention_without_topic_word_is_candidate():
+    from backend.app.sensitive import candidates
+    text = "물류팀 강반장님은 신장이 안 좋아서 주 3회 투석받느라 야근에서 빠지신대요."
+    assert len(candidates(text)) == 1                     # 주제 사전에 없는 '투석'도 AI가 판단
+
+
+def test_generic_honorifics_are_not_person_mentions():
+    from backend.app.sensitive import candidates
+    assert candidates("고객님께서는 내일까지 회신 바랍니다.\n임직원 여러분은 공지를 확인하세요.") == []

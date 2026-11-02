@@ -1,7 +1,9 @@
 """v1: 정규식으로 못 잡는 '문맥형 민감정보'를 LLM이 판단한다 (S6).
 
 흐름
-1. 문장 단위로 나누고, 민감 주제 단어가 든 문장만 '후보'로 고른다 (문서 전체를 보내지 않음 → 토큰·비용·청크 문제 회피)
+1. 문장 단위로 나누고, '후보' 문장만 고른다 (문서 전체를 보내지 않음 → 토큰·비용·청크 문제 회피)
+   후보 = 민감 주제 단어가 있는 문장 + 특정인을 가리키는 표현(○반장님, 김과장, ○○씨)이 있는 문장.
+   주제 단어만으로 고르면 사전에 없는 말("신장이 안 좋아 투석")을 놓쳐서, '사람 이야기'면 AI가 보게 했다 (S12)
 2. 후보 문장 + 바로 앞 문장(문맥)을 번호를 붙여 한 번에 묶어 LLM에 보낸다
 3. LLM 답의 근거 문구(evidence)가 해당 문장에 '글자 그대로' 있는지 코드로 확인 → 없으면 버린다 (환각 방지)
 4. LLM 호출이 실패하면 후보 문장을 민감정보로 간주한다 (판단 불가 → 보수적으로, fail-closed)
@@ -26,6 +28,19 @@ TOPIC_WORDS = {
     "PRIVATE": ["이혼", "별거", "빚", "채무", "파산", "개인회생", "연애", "교제", "성소수자", "성적 지향", "전과"],
 }
 KINDS = set(TOPIC_WORDS) | {"PRIVATE"}
+
+# 특정인을 가리키는 표현: 직함(김과장, 강반장님), 이름+씨/님. 불특정 호칭(고객님, 여러분 등)은 제외
+TITLES = ("사원", "주임", "대리", "과장", "차장", "부장", "팀장", "실장", "본부장", "이사", "상무", "전무", "반장",
+          "주무관", "매니저", "선임", "책임", "수석", "연구원", "인턴", "선생님", "교수", "계장", "소장", "원장")
+PERSON_RX = re.compile(r"[가-힣]{1,4}\s?(?:" + "|".join(TITLES) + r")|[가-힣]{2,4}\s?(?:씨|님)(?![가-힣])")
+GENERIC = ("고객", "회원", "여러분", "담당자", "관계자", "참석자", "신청자", "임직원", "직원", "모든", "각 ", "해당")
+
+
+def mentions_person(sent: str) -> bool:
+    for m in PERSON_RX.finditer(sent):
+        if not any(g in m.group() for g in GENERIC):
+            return True
+    return False
 MAX_PER_CALL = 25
 
 # 문서 안에 숨겨 둔 'AI에게 하는 지시'를 찾는 패턴. 정상 업무 문서엔 거의 나오지 않는 표현만 골랐다.
@@ -81,14 +96,15 @@ def split_sentences(text: str) -> list[tuple[int, int]]:
 
 
 def candidates(text: str) -> list[tuple[int, int, str]]:
-    """주제 단어가 든 문장 → (시작, 끝, 추정 주제)."""
+    """후보 문장 → (시작, 끝, 추정 주제). 주제 단어가 없고 특정인만 언급하면 추정 주제는 PRIVATE."""
     out = []
     for s, e in split_sentences(text):
         sent = text[s:e]
-        for kind, words in TOPIC_WORDS.items():
-            if any(w in sent for w in words):
-                out.append((s, e, kind))
-                break
+        kind = next((k for k, words in TOPIC_WORDS.items() if any(w in sent for w in words)), None)
+        if kind is None and mentions_person(sent):
+            kind = "PRIVATE"
+        if kind:
+            out.append((s, e, kind))
     return out
 
 
