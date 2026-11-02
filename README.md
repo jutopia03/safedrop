@@ -9,6 +9,7 @@
 - [요구사항 명세](docs/requirements.md) — 문제 정의, 사용자 흐름, 기능·비기능 요구사항과 달성 현황
 - [아키텍처](docs/architecture.md) — 시스템 구성도, 데이터 파이프라인, 전송 흐름, 보안 설계
 - [개발 과정과 핵심 개념](docs/understanding.md) — 단계별(S1~S8) 결정과 측정 결과
+- [멘토 피드백 반영 내역](docs/mentor-feedback.md) — 피드백별 판단·반영 내용과 근거 커밋
 
 ## 폴더 구조
 ```
