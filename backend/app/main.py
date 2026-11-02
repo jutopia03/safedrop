@@ -131,7 +131,9 @@ async def _analyze(file: UploadFile, sender: dict, recipient_ids: str):
         raise HTTPException(400, "수신자 id가 올바르지 않음")
     data = await file.read()
     _check_size(data)
-    ex = extract_text(file.filename, data)
+    # OCR(스캔 문서)은 페이지당 약 1초 걸리는 CPU 작업이라 별도 스레드에서 실행한다.
+    # 결과(문서 내용)는 캐시하지 않는다 — 서버에 내용을 남기지 않는 원칙 (검사·전송 때 각각 다시 읽음)
+    ex = await run_in_threadpool(extract_text, file.filename, data)
     entities, llm_info = [], {"llm": "off"}
     if ex.readable:
         entities = detect(ex.text)                       # v0: 정규식 + 검증
@@ -176,6 +178,7 @@ async def judge_file(file: UploadFile = File(...), recipient_ids: str = Form(...
     jid = uuid.uuid4().hex[:12]
     _judge_cache[jid] = (time.time(), decisions, user["id"])
     return {"filename": file.filename, "readable": ex.readable, "reason": ex.reason, "judge_id": jid,
+            "kind": ex.kind, "ocr_confidence": ex.ocr_confidence,
             "ai_explain": llm.enabled(), "entities": [e.to_dict() for e in entities], "llm": llm_info,
             "decisions": decisions}
 

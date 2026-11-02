@@ -107,7 +107,9 @@ async function doJudge() {
     : `⚠ ${esc(d.reason)}`;
   const llmLine = d.llm?.llm === 'off' ? 'AI 문맥 판단 꺼짐 (규칙 탐지만)'
     : `AI 문맥 판단: ${esc(d.llm.llm)} · 후보 문장 ${d.llm.candidates}개${d.llm.cached ? ' (이전 판단 재사용)' : ''}${d.llm.error ? ' · ⚠ AI 판단 실패 → 후보 문장을 민감정보로 간주 (' + esc(d.llm.error) + ')' : ''}${d.llm.injection ? ' · ⚠ AI에게 내리는 지시문 의심(' + d.llm.injection_hits.map(esc).join(' / ') + ') → AI 판단을 쓰지 않고 후보 문장을 민감정보로 간주' : ''}`;
-  $('sendMsg').innerHTML = `<span class="found">탐지 결과: ${found}<br>${llmLine}</span>`;
+  const ocrLine = d.ocr_confidence != null
+    ? `<br>📷 스캔 문서·이미지를 OCR로 읽음 (인식 신뢰도 ${d.ocr_confidence}%${d.readable ? '' : ' → 기준 미달이라 확인 불가로 차단'})` : '';
+  $('sendMsg').innerHTML = `<span class="found">탐지 결과: ${found}${ocrLine}<br>${llmLine}</span>`;
   $('results').innerHTML = d.decisions.map(renderDecision).join('');
   if (d.ai_explain && d.decisions.some((x) => x.reasons.length)) loadExplanations(d.judge_id);
   $('btnSend').disabled = !d.decisions.some((x) => x.action !== 'BLOCK');

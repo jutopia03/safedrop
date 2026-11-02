@@ -24,7 +24,7 @@ flowchart LR
   end
   subgraph B["SafeDrop 서버 (FastAPI · Render)"]
     AUTH["auth<br/>로그인·세션(HMAC)"]
-    EXT["extract<br/>TXT·PDF·DOCX 텍스트"]
+    EXT["extract<br/>TXT·PDF·DOCX 텍스트<br/>스캔 PDF·이미지는 OCR"]
     DET["detect<br/>정규식+검증(Luhn 등)"]
     SEN["sensitive<br/>문맥형 민감정보 (LLM)"]
     POL["policy<br/>규칙표 판정"]
@@ -64,7 +64,8 @@ flowchart LR
 | 모듈 | 역할 | 핵심 |
 |---|---|---|
 | `auth.py` | 로그인, 세션 | 시연 비밀번호 → HMAC 서명 세션 토큰(8시간, 탭별). 로그인 실패 IP당 1분 5회 |
-| `extract.py` | 텍스트 추출 | TXT·PDF(pypdf)·DOCX(python-docx). 페이지당 20자 미만 PDF(스캔본)는 **읽기 불가** |
+| `extract.py` | 텍스트 추출 | TXT·PDF(pypdf)·DOCX(python-docx). 글자 층이 없는 스캔 PDF와 이미지(PNG·JPG)는 OCR로 넘김 |
+| `ocr.py` | 스캔 문서 OCR | Tesseract(한국어) + 전처리(잡티 제거·자동 이진화), 인터넷·GPU 불필요. 평균 인식 신뢰도 60% 미만·10쪽 초과는 **읽기 불가 → 차단** |
 | `detect.py` | 정형 개인정보 탐지 | 주민·외국인등록번호(생년월일 검증), 카드(Luhn), 휴대폰, 이메일, 운전면허, 여권·계좌(키워드 근접) |
 | `sensitive.py` | 문맥형 민감정보 | 주제어로 후보 문장만 골라 LLM에 질문. 근거 문구 원문 대조, 실패·인젝션 시 fail-closed |
 | `policy.py` | 수신자별 판정 | 수신자 유형(외부 > 취급자 > 같은 부서 > 다른 부서) × 정보 유형 → 가장 엄격한 조치 + 근거 조항 |
@@ -79,8 +80,11 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  A["파일 업로드<br/>(로그인 세션 = 발신자)"] --> B{"텍스트 추출 가능?"}
-  B -- "아니오 (스캔 PDF 등)" --> X["UNREADABLE → 전 수신자 차단<br/>규정 7-1"]
+  A["파일 업로드<br/>(로그인 세션 = 발신자)"] --> A2{"글자 층 있음?"}
+  A2 -- "아니오 (스캔 PDF·사진)" --> O["OCR (Tesseract 한국어)<br/>잡티 제거·이진화"]
+  A2 -- "예" --> B
+  O --> B{"텍스트 확보?<br/>(OCR 신뢰도 60% 이상)"}
+  B -- "아니오" --> X["UNREADABLE → 전 수신자 차단<br/>규정 7-1"]
   B -- "예" --> C["① 정규식 탐지<br/>주민·카드·계좌·연락처 등<br/>+ 체크섬·키워드 검증"]
   B -- "예" --> D["② 후보 문장 선별<br/>건강·종교·정치·노조·사생활 주제어"]
   D --> I{"AI 대상 지시문<br/>(프롬프트 인젝션) 의심?"}
@@ -164,16 +168,17 @@ sequenceDiagram
 | 백엔드 | Python 3.12, FastAPI, uvicorn | 파일 처리·AI 라이브러리 생태계, 비동기 WebSocket |
 | 프런트 | HTML + JavaScript (프레임워크 없음) | WebRTC·WebCrypto가 브라우저 기본 기능, 빌드 과정 불필요 |
 | 문서 처리 | pypdf, python-docx | 순수 파이썬, 무료 서버 메모리(512MB) 안에서 동작 |
+| OCR | Tesseract 5 (kor), pypdfium2 | 무료 오픈소스, 인터넷·GPU 없이 CPU로 동작 → 폐쇄망 서버에 그대로 설치 가능. 페이지당 약 1~2초 |
 | 암호 | cryptography (ECDSA P-256), HMAC-SHA256 | 브라우저 WebCrypto로 검증 가능한 표준 곡선 |
 | AI | OpenAI 호환 SDK — 판단 gpt-5-mini, 설명 gpt-5.4-mini | 주소만 바꾸면 로컬 Ollama로 교체 가능(폐쇄망 대응) |
 | 배포 | Render 무료 웹 서비스 (Docker, `render.yaml`) | 카드 없이 외부 접속 가능한 HTTPS 주소 |
-| 테스트 | pytest 37개 | LLM·네트워크 없이 1초, 가짜 LLM으로 안전장치 검증 |
+| 테스트 | pytest 43개 | LLM·네트워크 없이 1초, 가짜 LLM으로 안전장치 검증 |
 
 ## 6. 한계와 향후 계획
 | 한계 (현재) | 향후 |
 |---|---|
 | 공통 시연 비밀번호 로그인 | 사내 계정(SSO/LDAP) 연동 |
-| 스캔 PDF·이미지는 OCR 없이 차단 | 사내 서버에서 동작하는 OCR 추가 |
+| OCR은 인쇄체 기준, 손글씨·저화질은 신뢰도 기준으로 차단 | GPU 서버가 있으면 딥러닝 OCR(예: PaddleOCR)로 교체해 인식률 향상 |
 | 마스킹 사본은 텍스트(.txt)로 전달 | DOCX·PDF 원본 형식 유지 마스킹 |
 | TURN 서버 없음 → P2P 실패 시 서버 메모리 중계 | 사내 TURN 서버 |
 | 무료 서버 재시작 시 감사 로그·서명 키 초기화 | DB·키 관리 서비스에 영구 저장 |

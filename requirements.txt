@@ -6,3 +6,6 @@ python-docx
 cryptography
 openai
 python-dotenv
+pypdfium2
+pytesseract
+pillow
