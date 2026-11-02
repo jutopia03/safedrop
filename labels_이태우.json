@@ -1,0 +1,121 @@
+[
+  {
+    "file": "doc_이태우_01_영업고객명단.docx",
+    "note": "영업 고객 담당자 명단(표). 휴대폰 표기 변형 3종(하이픈·공백·붙여쓰기). 함정: 고객사 대표번호, 사업자등록번호, 고객센터 1644 번호, 날짜·문서번호",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-4821-7730"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "daeun.jung@hanbit-trade.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010 3352 9184"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "sejin.oh@somang-tech.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "01077162048"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "yuna.ha@greenlogis.example"
+      }
+    ]
+  },
+  {
+    "file": "doc_이태우_02_개발장애보고.txt",
+    "note": "이체 API 장애 보고서. 서버 로그에 고객 이메일·전화번호(점 구분) 원문 노출. 함정: 부분 마스킹 번호(010-****-3147), 14자리 요청ID('이체' 키워드 옆), 공용 메일(dev-oncall@), 고객센터 1644 번호",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "minho.seo@codev.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-2917-6403"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "soyeon.kang92@mail.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010.5528.3147"
+      }
+    ]
+  },
+  {
+    "file": "doc_이태우_03_회의실예약안내.txt",
+    "note": "개인정보 없는 문서 1: 총무팀 회의실 예약 공지 (날짜·시간·내선번호만)",
+    "entities": []
+  },
+  {
+    "file": "doc_이태우_04_릴리스노트.txt",
+    "note": "개인정보 없는 문서 2: 사내 소프트웨어 릴리스 노트 (버전·빌드 번호·이슈 번호·날짜만)",
+    "entities": []
+  },
+  {
+    "file": "doc_이태우_05_함정_자산관리대장.txt",
+    "note": "함정 문서 1: 장비 자산 대장. 제조번호(LOT)가 'YYMMDD-7자리'라 주민번호와 모양이 같음, 시리얼·바코드(13자리)·사업자등록번호·대표번호·팩스·1588 번호·날짜. 실제 개인정보 없음",
+    "entities": []
+  },
+  {
+    "file": "doc_이태우_06_함정_교육일정공지.txt",
+    "note": "함정 문서 2: 교육 일정 공지. 날짜 형식 여러 가지(2026.11.10 / 26/11/02 / 20261124), 신청번호·교육코드·수료증 번호, 지역 대표번호(031), 070 사무실 번호. 진짜는 현장 담당자 휴대폰 1개",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-6237-4410"
+      }
+    ]
+  },
+  {
+    "file": "doc_이태우_07_스캔_세미나참석자명단.pdf",
+    "note": "스캔 PDF(글자 층 없음, 약간 기울기·번짐·잡티) → OCR로 읽어야 함. 참석자 휴대폰 3개·이메일 2개. 함정: 주최 대표번호, 날짜",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-8143-2276"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "jihwan.ryu@daesung-pm.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-5096-3381"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-7724-1059"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "sh.baek@hangyeol.example"
+      }
+    ]
+  }
+]
