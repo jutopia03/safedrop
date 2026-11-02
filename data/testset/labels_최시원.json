@@ -1,0 +1,434 @@
+[
+  {
+    "file": "doc_최시원_01_인사기록카드.txt",
+    "note": "경력직 입사자 인사기록카드 — 주민번호·휴대폰·개인메일·실명 사내메일·급여계좌·비상연락처(공백 표기), 사번·자산번호·4대보험 접수번호·대표번호·공용메일은 오탐 유도",
+    "entities": [
+      {
+        "category": "UNIQUE_ID",
+        "type": "RRN",
+        "text": "950817-1538214"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-4821-7735"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "doyoon.kim95@mail.example"
+      },
+      {
+        "category": "FINANCIAL",
+        "type": "ACCOUNT",
+        "text": "412901-04-338127"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010 3326 9184"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "doyoon.kim@codev.example"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_02_CS티켓_가맹점정산지연.txt",
+    "note": "고객센터 상담 티켓 — 가맹점주 이메일·휴대폰(공백)·개인 정산계좌, 가맹점번호·사업자번호·정산ID·마스킹 번호·고객센터 번호는 오탐 유도",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "seoyeon_p88@fakemail.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010 2938 6614"
+      },
+      {
+        "category": "FINANCIAL",
+        "type": "ACCOUNT",
+        "text": "352-1044-8271-63"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_03_장애보고서_카드승인오류.txt",
+    "note": "PG 연동 장애 보고서 — 로그 속 카드번호(공백)·휴대폰(하이픈 없음)·이메일, 마스킹 카드·승인번호·가맹점번호·BIN·버전·알림ID는 오탐 유도",
+    "entities": [
+      {
+        "category": "FINANCIAL",
+        "type": "CARD",
+        "text": "9410 1123 4587 6620"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "junho.lim.pay@mail.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "01077214490"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_04_외국인개발자_근로계약서.txt",
+    "note": "외국인 개발자(E-7) 근로계약서 — 외국인등록번호·여권번호·휴대폰·급여계좌, 사업자번호·계약번호·대표번호·연봉 금액·날짜는 오탐 유도",
+    "entities": [
+      {
+        "category": "UNIQUE_ID",
+        "type": "FRN",
+        "text": "920304-5872416"
+      },
+      {
+        "category": "UNIQUE_ID",
+        "type": "PASSPORT",
+        "text": "C4829175"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-6612-3048"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "an.nguyen.dev@fakemail.example"
+      },
+      {
+        "category": "FINANCIAL",
+        "type": "ACCOUNT",
+        "text": "1002-857-394216"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_05_법인차량_사용신청서.txt",
+    "note": "법인차량 사용 신청서(운전자 보험 등록 포함) — 주민번호(뒷자리 앞 공백)·운전면허·휴대폰(점 표기), 법인카드 번호(회사 카드)·차량번호·차대번호·주행거리는 오탐 유도",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010.3381.9027"
+      },
+      {
+        "category": "UNIQUE_ID",
+        "type": "RRN",
+        "text": "000512- 4128337"
+      },
+      {
+        "category": "UNIQUE_ID",
+        "type": "DRIVER",
+        "text": "11-19-374826-50"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_06_주간회의록_건강.txt",
+    "note": "개발팀 주간 회의록 — 업무 내용 사이 건강 민감정보 문장 1개 + 협력사 담당자 휴대폰, JIRA 번호·견적·품의번호·회의실·협력사 대표번호는 오탐 유도 (v1 LLM 평가용)",
+    "entities": [
+      {
+        "category": "SENSITIVE",
+        "type": "HEALTH",
+        "text": "한지수 대리는 지난주 공황장애 진단을 받아 당분간 주 3일 재택근무를 하기로 했다."
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-5871-2264"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_07_인사팀_대외비메모.txt",
+    "note": "인사팀 대외비 면담 메모 — 노조·정치·종교 민감정보 문장 3개 + 직원 휴대폰, 인원수·초과근무 수치·안건번호·내선·익명신고 공용메일은 오탐 유도 (v1 LLM 평가용)",
+    "entities": [
+      {
+        "category": "SENSITIVE",
+        "type": "UNION",
+        "text": "고객운영팀 강우진 주임은 이번 달 사무금융노조 코데브 지회에 가입했고 지회 대의원 출마를 준비 중이라고 함."
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-7364-0915"
+      },
+      {
+        "category": "SENSITIVE",
+        "type": "POLITICS",
+        "text": "정산운영팀 서예린 사원은 주말마다 특정 정당 청년위원회 활동을 하며 SNS에 정치 글을 자주 올린다고 함."
+      },
+      {
+        "category": "SENSITIVE",
+        "type": "BELIEF",
+        "text": "서예린 사원은 독실한 불교 신자로 매년 석가탄신일에 연차를 사용한다고 함."
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_08_보도자료_정산서비스출시.txt",
+    "note": "개인정보가 전혀 없는 회사 보도자료 — 대표번호·사업자번호·특허번호·제품 버전·공용메일·날짜·금액만 있음 (정답 0개, 오탐 측정용)",
+    "entities": []
+  },
+  {
+    "file": "doc_최시원_09_프리랜서_용역계약_대금지급.txt",
+    "note": "외주 프리랜서 용역계약 및 대금 지급 요청서 — 국제표기 휴대폰·괄호표기 휴대폰·개인메일·지급계좌, 계약번호·사업자번호·원천세율·품의번호·대표번호는 오탐 유도",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "+82-10-5527-1093"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "(010)8842-3165"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "jaeseok.yoon.design@fakemail.example"
+      },
+      {
+        "category": "FINANCIAL",
+        "type": "ACCOUNT",
+        "text": "3333-07-5528146"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_10_구독환불_처리내역서.txt",
+    "note": "가맹점 SaaS 구독 환불 처리 내역서 — 환불계좌(하이픈 없음)·이메일(대소문자 혼합)·휴대폰, 회사 수납용 가상계좌·거래번호·가맹점번호·고객센터 번호는 오탐 유도",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "SoHee.Lim@TestMail.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-9013-2276"
+      },
+      {
+        "category": "FINANCIAL",
+        "type": "ACCOUNT",
+        "text": "110482937156"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_11_휴직신청_면담기록.txt",
+    "note": "직원 휴직 신청 및 면담 기록 — 건강 민감정보 문장 2개 + 본인 개인메일·가족 휴대폰, 사번·휴직 기간·규정 조항·내선은 오탐 유도 (v1 LLM 평가용)",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "yuna.cho.home@mail.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-2471-8853"
+      },
+      {
+        "category": "SENSITIVE",
+        "type": "HEALTH",
+        "text": "조유나 책임은 지난달 갑상선암 수술을 받았고 방사성 요오드 치료를 앞두고 있다고 함."
+      },
+      {
+        "category": "SENSITIVE",
+        "type": "HEALTH",
+        "text": "조유나 책임은 수술 이후 불안 증세로 정신건강의학과 상담을 병행하고 있다고 본인이 밝힘."
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_12_워크숍_참가자명단.txt",
+    "note": "사내 워크숍 안내 및 참가자 명단 — PII 6개(휴대폰 3가지 표기 + 개인메일), 사내 공용메일·리조트 번호·예약번호·버스 차량번호는 오탐 유도",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-3318-7720"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "dh.shin88@mail.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010 6624 1587"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "narae.kwon@fakemail.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "01049927731"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "bomin.hb@mail.example"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_13_사진_재직증명서.png",
+    "note": "인쇄 후 휴대폰으로 촬영한 듯한 재직증명서 이미지 (기울임·조명 얼룩·노이즈) — 주민번호·휴대폰·개인메일, 발급번호·사업자번호·대표전화·날짜는 오탐 유도",
+    "entities": [
+      {
+        "category": "UNIQUE_ID",
+        "type": "RRN",
+        "text": "880221-1947253"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-7765-2038"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "hyun.namgung88@mail.example"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_14_흐린스캔_입사서류동의서.png",
+    "note": "입사 서류 중 심하게 흐린 개인정보 동의서 스캔 → OCR 신뢰도 낮음으로 차단되는지 확인용 (글자는 있으나 판독 불가 가정, 정답 빈 목록)",
+    "entities": []
+  },
+  {
+    "file": "doc_최시원_15_경조사비_신청서.docx",
+    "note": "경조사비 지급 신청서(Word) — 신청자 휴대폰·경조금 입금계좌·자택전화, 사번·장례식장 대표번호·금액·규정 조항·결재번호는 오탐 유도",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-8130-4472"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "031-704-2286"
+      },
+      {
+        "category": "FINANCIAL",
+        "type": "ACCOUNT",
+        "text": "088-153729-01-016"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_16_개인정보유출의심_신고서.txt",
+    "note": "개인정보 유출 의심 사고 신고서 — 외부 수신자 개인메일·유출 고객 샘플(전화·메일)·카드번호 원문, 마스킹 주민번호·사고번호·건수·공용메일은 오탐 유도",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "kimsj.partner@mail.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-2245-9031"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "taesik.oh@fakemail.example"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-3920-5518"
+      },
+      {
+        "category": "FINANCIAL",
+        "type": "CARD",
+        "text": "5389 2014 6672 0153"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_17_출장비_정산서.pdf",
+    "note": "국내 출장비 정산서(텍스트 PDF) — 개인카드(숫자 붙여쓰기)·환급계좌·휴대폰, 법인카드 마스킹·영수증번호·KTX 예약번호·금액은 오탐 유도",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-3381-9027"
+      },
+      {
+        "category": "FINANCIAL",
+        "type": "CARD",
+        "text": "4890123456781234"
+      },
+      {
+        "category": "FINANCIAL",
+        "type": "ACCOUNT",
+        "text": "1000-3381-9027"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_18_스캔PDF_입사지원서.pdf",
+    "note": "입사지원서 출력본을 스캔한 이미지 PDF (텍스트 레이어 없음, OCR로 읽힘) — 휴대폰·개인메일·여권번호, 생년월일·지원번호·자격증 번호·대표번호는 오탐 유도",
+    "entities": [
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "010-6258-4419"
+      },
+      {
+        "category": "CONTACT",
+        "type": "EMAIL",
+        "text": "hyerin.kwon94@mail.example"
+      },
+      {
+        "category": "UNIQUE_ID",
+        "type": "PASSPORT",
+        "text": "M71839264"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_19_메신저대화_내보내기.txt",
+    "note": "사내 메신저 채널 대화 내보내기 — 구어체 속 건강 민감정보·휴대폰(하이픈 없음)·회비 계좌, JIRA·PR 번호·사내 IP·타임스탬프는 오탐 유도 (v1 LLM 평가용)",
+    "entities": [
+      {
+        "category": "SENSITIVE",
+        "type": "HEALTH",
+        "text": "사실 저 다음 주에 허리디스크 수술 받기로 해서 오늘 수술 전 검사 받으러 가요"
+      },
+      {
+        "category": "CONTACT",
+        "type": "PHONE",
+        "text": "01093327705"
+      },
+      {
+        "category": "FINANCIAL",
+        "type": "ACCOUNT",
+        "text": "3333-24-8817305"
+      }
+    ]
+  },
+  {
+    "file": "doc_최시원_20_서버정기점검_공지.docx",
+    "note": "개인정보가 전혀 없는 서버 정기점검 공지(Word) — 사내 IP·포트·버전·작업번호·장애 대응 대표번호·공용메일·날짜만 있음 (정답 0개, 오탐 측정용)",
+    "entities": []
+  }
+]
