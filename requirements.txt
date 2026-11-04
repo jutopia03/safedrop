@@ -1,11 +1,12 @@
-fastapi
-uvicorn[standard]
-python-multipart
-pypdf
-python-docx
-cryptography
-openai
-python-dotenv
-pypdfium2
-pytesseract
-pillow
+# 버전 고정: 자동 테스트 58개가 통과한 조합 (2026-11-04). 올릴 때는 테스트 후 함께 갱신
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+pypdf==6.17.0
+python-docx==1.2.0
+cryptography==50.0.1
+openai==3.42.0
+python-dotenv==1.2.3
+pypdfium2==5.13.0
+pytesseract==0.3.13
+pillow==12.3.0

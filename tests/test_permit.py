@@ -39,3 +39,19 @@ def test_tampered_token_fails():
         assert False, "조작된 토큰이 통과하면 안 됨"
     except InvalidSignature:
         pass
+
+
+def test_signing_key_from_env_survives_restart(monkeypatch):
+    """같은 키를 환경변수로 주면 서버를 다시 띄워도 이전 토큰이 그대로 검증된다."""
+    import base64
+    import importlib
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from backend.app import permit
+    pem = ec.generate_private_key(ec.SECP256R1()).private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+    monkeypatch.setenv("PERMIT_SIGNING_KEY", base64.b64encode(pem).decode())
+    tok = importlib.reload(permit).issue({"tid": "t", "recipient": "u06"})
+    assert importlib.reload(permit).verify(tok)["tid"] == "t"      # '재시작' 후에도 유효
+    monkeypatch.delenv("PERMIT_SIGNING_KEY")
+    assert importlib.reload(permit).verify(tok) is None             # 임시 키면 무효

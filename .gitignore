@@ -13,3 +13,4 @@ Thumbs.db
 .vscode/
 .idea/
 logs/
+deploy/onprem/onprem.env

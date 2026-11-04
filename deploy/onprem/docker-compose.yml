@@ -1,0 +1,60 @@
+# SafeDrop 사내(폐쇄망) 설치 묶음: 앱 + 로컬 LLM(Ollama)
+# - 외부 AI API 없이 동작: 판단 qwen3:8b + 설명 exaone3.5:7.8b (docs/eval/local_llm.md 측정 기준 권장 조합)
+# - GPU: NVIDIA 16GB 이상 1대 (두 모델 합 약 11GB), NVIDIA Container Toolkit 필요
+# 실행: deploy/onprem/README.md 참고
+name: safedrop
+
+services:
+  app:
+    build:
+      context: ../..
+    image: safedrop:onprem
+    env_file: onprem.env
+    environment:
+      OPENAI_API_KEY: ollama                       # Ollama는 키를 확인하지 않음 (빈 값이면 AI가 꺼지므로 아무 값)
+      OPENAI_BASE_URL: http://ollama:11434/v1
+      OPENAI_MODEL: qwen3:8b
+      EXPLAIN_MODEL: exaone3.5:7.8b
+      LLM_TIMEOUT: "300"                          # 로컬 모델 첫 응답(모델 적재) 대기
+      PORT: "8000"
+    ports:
+      - "8000:8000"                                # 사내 리버스 프록시(HTTPS) 뒤에 두는 것을 권장
+    volumes:
+      - audit-logs:/app/logs                       # 감사 로그를 컨테이너 밖에 보존
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:${OLLAMA_VERSION:-latest}   # 운영 전 검증한 버전으로 고정 권장 (onprem.env)
+    volumes:
+      - ollama-models:/root/.ollama                # 모델 파일 보존 (폐쇄망은 이 볼륨을 미리 채워서 반입)
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # 인터넷이 되는 환경에서 한 번만 실행해 모델을 받는다: docker compose --profile setup run --rm pull-models
+  pull-models:
+    image: ollama/ollama:${OLLAMA_VERSION:-latest}
+    profiles: ["setup"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["sh", "-c", "ollama pull qwen3:8b && ollama pull exaone3.5:7.8b && ollama list"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+volumes:
+  audit-logs:
+  ollama-models:

@@ -8,18 +8,40 @@
 수신자 브라우저는 ① 서명이 서버 것인지 ② 받은 파일의 해시가 토큰과 같은지 ③ 수신자가 나인지·만료 전인지
 를 확인한다. 그래서 검사받지 않은 파일이나 바꿔치기한 파일은 받을 수 없다.
 
-MVP 한계: 서명 키를 서버 시작 시 새로 만든다(재시작하면 이전 토큰은 무효). 운영에서는 키를 안전하게 보관해야 한다.
+서명 키: 환경변수 PERMIT_SIGNING_KEY(PEM 또는 PEM을 base64로 한 줄로 만든 값)가 있으면 그 키를 쓰고,
+없으면 서버 시작 시 새로 만든다(이 경우 재시작하면 이전 토큰은 무효). 키 생성: python scripts/gen_secrets.py
 """
 import base64
+import binascii
 import json
+import logging
+import os
 import time
 
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
 TOKEN_TTL_SEC = 10 * 60
-_private_key = ec.generate_private_key(ec.SECP256R1())
+
+
+def _load_key():
+    raw = os.getenv("PERMIT_SIGNING_KEY", "").strip()
+    if not raw:
+        logging.getLogger("safedrop").warning("PERMIT_SIGNING_KEY 없음: 임시 서명 키 사용 (재시작 시 토큰 무효)")
+        return ec.generate_private_key(ec.SECP256R1())
+    if not raw.startswith("-----BEGIN"):
+        try:
+            raw = base64.b64decode(raw).decode()      # 환경변수에 여러 줄을 넣기 어려운 곳을 위해 base64 한 줄도 허용
+        except (binascii.Error, UnicodeDecodeError) as e:
+            raise RuntimeError("PERMIT_SIGNING_KEY 형식 오류 (PEM 또는 base64 PEM)") from e
+    key = serialization.load_pem_private_key(raw.encode(), password=None)
+    if not isinstance(key, ec.EllipticCurvePrivateKey) or key.curve.name != "secp256r1":
+        raise RuntimeError("PERMIT_SIGNING_KEY는 P-256 EC 개인키여야 함")
+    return key
+
+
+_private_key = _load_key()
 
 
 def _b64u(b: bytes) -> str:

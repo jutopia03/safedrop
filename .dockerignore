@@ -5,3 +5,5 @@ __pycache__
 *.pyc
 .venv
 venv
+deploy/onprem/onprem.env
+*.env

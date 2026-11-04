@@ -60,18 +60,19 @@
 ## 직접 실행
 ```bash
 pip install -r requirements.txt
-pip install -r requirements-dev.txt && pytest -q      # 자동 테스트 58개 (AI·네트워크 없이 약 10초)
+pip install -r requirements-dev.txt && pytest -q      # 자동 테스트 59개 (AI·네트워크 없이 약 10초)
 cp .env.example .env                                    # AI 키·시연 비밀번호 설정 (비우면 규칙 탐지만 동작)
 uvicorn backend.app.main:app --reload                   # http://localhost:8000
 ```
 - OCR(스캔 PDF·사진)은 Tesseract와 한국어 데이터가 필요합니다(`Dockerfile` 참고). 없으면 스캔 문서는 '확인 불가 → 차단'으로 처리됩니다.
-- 폐쇄망: `.env`에서 `OPENAI_BASE_URL`을 Ollama 주소로 바꾸면 외부 API 없이 동작합니다(권장 모델 조합은 `.env.example`).
+- 폐쇄망(사내 설치): [`deploy/onprem/`](deploy/onprem/README.md) — 앱 + 로컬 LLM(Ollama) 설치 묶음, GPU 16GB 1대 기준. 외부 API 없이 동작
+- 실제 배포 기준 점검과 로드맵: [아키텍처 6장](docs/architecture.md)
 
 <details>
 <summary>배포 (Render 무료 웹 서비스)</summary>
 
 1. [render.com](https://render.com)에 GitHub 계정으로 가입 → New → **Blueprint** → 이 저장소 선택 (`render.yaml`)
-2. Environment에 입력 (저장소에 커밋 금지): `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `EXPLAIN_MODEL`, **`DEMO_PASSWORD`(필수)**, `SESSION_SECRET`(선택, 재시작 후에도 로그인 유지)
+2. Environment에 입력 (저장소에 커밋 금지): `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `EXPLAIN_MODEL`, **`DEMO_PASSWORD`(필수)**, `SESSION_SECRET`·`PERMIT_SIGNING_KEY`(권장, 재시작 후에도 로그인·전송 토큰 유지 — `python scripts/gen_secrets.py`로 생성)
 - 15분 미사용 시 잠들고 깨어날 때 약 1분 소요. 깨어나면 서명 키·중계 대기 파일이 초기화됨
 </details>
 
