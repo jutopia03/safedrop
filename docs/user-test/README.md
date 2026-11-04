@@ -32,7 +32,7 @@
 | 파일 | 내용 | 다운로드 |
 |---|---|---|
 | `sample1_인사기록카드.docx` | 신규 입사자 주민번호·연락처·이메일·급여 계좌 | [받기](https://github.com/jutopia03/safedrop/raw/main/docs/user-test/samples/sample1_인사기록카드.docx) |
-| `sample2_주간회의록.txt` | 팀 회의록 속 특정 직원의 수술·병가 이야기 (AI가 문맥으로 판단하는 민감정보) | [받기](https://github.com/jutopia03/safedrop/raw/main/docs/user-test/samples/sample2_주간회의록.txt) |
+| `sample2_주간회의록.docx` | 팀 회의록 속 특정 직원의 수술·병가 이야기 (AI가 문맥으로 판단하는 민감정보) | [받기](https://github.com/jutopia03/safedrop/raw/main/docs/user-test/samples/sample2_주간회의록.docx) |
 | `sample3_스캔본_인사발령.pdf` | 스캔 이미지 문서 (OCR로 읽음) | [받기](https://github.com/jutopia03/safedrop/raw/main/docs/user-test/samples/sample3_스캔본_인사발령.pdf) |
 
 ## 예상 결과 (운영자용 — 참가자에게 공개하지 않음)
