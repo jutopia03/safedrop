@@ -39,7 +39,7 @@ async function init() {
   $('loginUser').innerHTML = people.map((p) => `<option value="${p.id}">${esc(p.name)} · ${esc(p.dept)} ${esc(p.title)}${p.privileged ? ' (취급자)' : ''}${p.admin ? ' (관리자)' : ''}</option>`).join('');
   $('btnLogin').onclick = doLogin;
   $('loginPw').onkeydown = (e) => { if (e.key === 'Enter') doLogin(); };
-  $('btnLogout').onclick = () => { try { sessionStorage.removeItem('sd_session'); } catch (e) {} session = null; ws?.close(); showLogin(''); };
+  $('btnLogout').onclick = () => { try { sessionStorage.removeItem('sd_session'); } catch (e) {} session = null; clearTimeout(wsTimer); ws?.close(); showLogin(''); };
   $('btnJudge').onclick = doJudge;
   $('btnSend').onclick = doSend;
   $('btnAudit').onclick = loadAudit;
@@ -249,12 +249,22 @@ async function flushIce(from) {
 }
 
 // ---------------- 신호 채널 (WebSocket) ----------------
+// 서버가 재시작·절전 후 깨어나면 연결이 끊기므로 자동으로 다시 연결한다 (1초 → 최대 30초 간격)
+let wsRetry = 0, wsTimer = null;
 function connectWS() {
-  ws?.close();
+  clearTimeout(wsTimer);
+  if (ws) { ws.onclose = null; ws.close(); }
+  if (!session) return;                                   // 로그아웃 상태면 연결하지 않음
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  ws = new WebSocket(`${proto}://${location.host}/ws`);
-  ws.onopen = () => { ws.send(JSON.stringify({ type: 'auth', token: session })); $('conn').className = 'dot on'; };
-  ws.onclose = () => $('conn').className = 'dot off';
+  const sock = new WebSocket(`${proto}://${location.host}/ws`);
+  ws = sock;
+  sock.onopen = () => { sock.send(JSON.stringify({ type: 'auth', token: session })); wsRetry = 0; $('conn').className = 'dot on'; };
+  sock.onclose = (ev) => {
+    $('conn').className = 'dot off';
+    if (ws !== sock || !session) return;                 // 새 연결로 바뀌었거나 로그아웃
+    if (ev.code === 4401) { showLogin('로그인이 만료되었습니다. 다시 로그인하세요.'); return; }
+    wsTimer = setTimeout(connectWS, Math.min(30000, 1000 * 2 ** wsRetry++));
+  };
   ws.onmessage = async (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.type === 'offer') await onOffer(msg.from, msg.data);
