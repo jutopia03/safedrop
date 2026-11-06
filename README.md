@@ -34,7 +34,7 @@
 | 근거 조항 검색 (20개 상황) | Recall@3 90% | **100%** | [S7](docs/understanding.md) |
 | AI 설명 인용 검증 (20개 상황) | 프롬프트 보완 후 25%로 회귀 | 원인 수정 후 **20/20**, 설명 대기 35초 → 2.4초 | [S7·S8·S10](docs/understanding.md) |
 | 폐쇄망(로컬 LLM) | — | 16GB GPU 1대로 외부 API와 같은 판단 90%·설명 18~20/20 | [local_llm](docs/eval/local_llm.md) |
-| 사용자 테스트 (5명 이상) | — | 11/5~6 진행 예정 | [user-test](docs/user-test/README.md) |
+| 사용자 테스트 (5명) | — | 판단 납득 4.8/5, 이해도 확인 5/5 정답 → 피드백 2건 반영 | [결과 요약](docs/user-test/결과요약.md) |
 
 ## 팀 codev와 역할 (실제 수행 기준)
 | 이름 | 역할 | 결과물 (GitHub 기록) |
@@ -60,7 +60,7 @@
 ## 직접 실행
 ```bash
 pip install -r requirements.txt
-pip install -r requirements-dev.txt && pytest -q      # 자동 테스트 59개 (AI·네트워크 없이 약 10초)
+pip install -r requirements-dev.txt && pytest -q      # 자동 테스트 62개 (AI·네트워크 없이 약 10초)
 cp .env.example .env                                    # AI 키·시연 비밀번호 설정 (비우면 규칙 탐지만 동작)
 uvicorn backend.app.main:app --reload                   # http://localhost:8000
 ```

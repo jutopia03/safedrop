@@ -64,6 +64,17 @@ def admin_user(user: dict = Depends(current_user)) -> dict:
 
 
 @app.middleware("http")
+async def revalidate_static(request: Request, call_next):
+    """화면 파일(HTML·JS·CSS)은 매번 서버에 최신 여부를 확인하게 한다.
+    캐시 지시가 없으면 브라우저가 배포 후에도 예전 app.js를 한동안 재사용한다 (배포 화면 확인에서 발견).
+    no-cache는 '저장 금지'가 아니라 '쓰기 전에 확인' — 바뀌지 않았으면 304로 가볍게 끝난다."""
+    response = await call_next(request)
+    if not request.url.path.startswith(("/api/", "/ws")):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.middleware("http")
 async def limit_upload_size(request: Request, call_next):
     """본문이 너무 큰 요청은 읽기 전에 거절한다 (Content-Length 기준, 실제 크기는 각 API에서 한 번 더 확인)."""
     size = request.headers.get("content-length")

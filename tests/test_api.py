@@ -126,3 +126,9 @@ def test_judge_returns_causes_but_does_not_cache_them(client):
     assert d["action"] == "BLOCK" and any(c["hit"] == "950312-2345678" for c in d["causes"])
     cached = main._judge_cache[r.json()["judge_id"]][1][0]
     assert "causes" not in cached                                   # 원문 일부는 서버에 남기지 않음
+
+
+def test_static_files_are_revalidated(client):
+    """배포 후 예전 화면 코드가 남지 않도록 화면 파일은 매번 최신 여부를 확인하게 한다."""
+    for path in ("/", "/app.js", "/style.css"):
+        assert client.get(path).headers.get("cache-control") == "no-cache"
