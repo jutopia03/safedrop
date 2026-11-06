@@ -27,7 +27,7 @@ from . import auth, llm, permit, transfer
 from .detect import detect
 from .explain import explain
 from .extract import extract_text
-from .mask import mask_text
+from .mask import cause_snippets, mask_text
 from .policy import judge
 from .sensitive import detect_sensitive
 
@@ -177,10 +177,12 @@ async def judge_file(file: UploadFile = File(...), recipient_ids: str = Form(...
     _purge(_judge_cache)
     jid = uuid.uuid4().hex[:12]
     _judge_cache[jid] = (time.time(), decisions, user["id"])
+    # 원인 위치(원문 일부)는 캐시에 넣지 않고 응답에만 붙인다 — 서버에 원문을 남기지 않는 원칙
+    shown = [dict(d, causes=cause_snippets(ex.text, entities, d)) for d in decisions]
     return {"filename": file.filename, "readable": ex.readable, "reason": ex.reason, "judge_id": jid,
             "kind": ex.kind, "ocr_confidence": ex.ocr_confidence,
             "ai_explain": llm.enabled(), "entities": [e.to_dict() for e in entities], "llm": llm_info,
-            "decisions": decisions}
+            "decisions": shown}
 
 
 @app.get("/api/explain/{jid}")

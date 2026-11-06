@@ -50,3 +50,9 @@ td, th { border-bottom: 1px solid var(--line); padding: 6px 4px; text-align: lef
 [hidden] { display: none !important; }
 #evalOut { white-space: pre-wrap; max-height: 320px; overflow: auto; font-size: 12px; }
 .cites { font-size: 12px; color: #2563eb; white-space: nowrap; }
+.causes ul { list-style: none; padding-left: 0; margin: 6px 0; }
+.causes li { margin: 6px 0; }
+.causes .ctx { font-family: ui-monospace, monospace; font-size: 13px; background: #f8fafc; padding: 4px 8px; border-radius: 6px; margin-top: 3px; word-break: break-all; }
+.causes mark.BLOCK { background: #fecaca; color: #7f1d1d; padding: 0 2px; }
+.causes mark.MASK { background: #fde68a; color: #78350f; padding: 0 2px; }
+.causes .badge { font-size: 11px; padding: 1px 6px; }

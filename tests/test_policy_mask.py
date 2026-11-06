@@ -43,3 +43,16 @@ def test_sensitive_sentence_masked_whole():
     s = text.index("길하람"); e = text.index("진단.") + 3
     ents = detect(text) + [Entity("SENSITIVE", "HEALTH", text[s:e], s, e)]
     assert mask_text(text, ents, ["SENSITIVE"]).startswith("[민감정보 가림]")
+
+
+# ---- 원인 위치 보기 (사용자 테스트 피드백 반영) ----
+def test_cause_snippets_show_where_blocked_and_masked():
+    from backend.app.mask import cause_snippets
+    text = "성명: 도윤슬\n주민등록번호: 950312-2345678\n연락처: 010-9876-5432"
+    ents = detect(text)
+    ext = judge(ents, True, "u05", ["x01"])[0]                  # 협력사: 주민번호 차단, 연락처 마스킹
+    c = cause_snippets(text, ents, ext)
+    assert [x["action"] for x in c] == ["BLOCK", "MASK"]           # 차단 원인이 먼저
+    assert c[0]["hit"] == "950312-2345678" and c[0]["before"].startswith("주민등록번호") and c[0]["clause"] == "3-3"
+    inside = judge(ents, True, "u05", ["u02"])[0]                # 취급자: 모두 허용 → 원인 없음
+    assert cause_snippets(text, ents, inside) == []

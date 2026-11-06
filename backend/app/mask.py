@@ -40,3 +40,35 @@ def mask_text(text: str, entities: list, categories: list[str]) -> str:
         last = e.end
     out.append(text[last:])
     return "".join(out)
+
+
+SEVERITY = {"BLOCK": 0, "MASK": 1, "ALLOW": 2}
+
+
+def cause_snippets(text: str, entities: list, decision: dict, ctx: int = 30, limit: int = 30) -> list[dict]:
+    """차단·마스킹의 원인이 된 부분을 원문에서 찾아 앞뒤 문맥과 함께 돌려준다 (사용자 테스트 피드백 반영).
+
+    '지운 파일로 다시 검사하세요'라는 안내만으로는 어디를 지워야 할지 알 수 없다는 의견에 따라,
+    수신자별로 허용되지 않은 정보가 문서의 어느 위치에 있는지 보여준다. 발신자 본인 파일이므로 원문을 보여주되,
+    서버 캐시에는 남기지 않고 응답에만 담는다.
+    """
+    rule = {r["category"]: (r["action"], r["clause"]) for r in decision["reasons"]}
+    out = []
+    for e in entities:
+        action, clause = rule.get(e.category, ("ALLOW", ""))
+        if action == "ALLOW":
+            continue
+        line_start = text.rfind("\n", 0, e.start) + 1
+        line_end = text.find("\n", e.end)
+        line_end = len(text) if line_end == -1 else line_end
+        before = text[max(line_start, e.start - ctx):e.start]
+        after = text[e.end:min(line_end, e.end + ctx)]
+        hit = text[e.start:e.end].strip()
+        out.append({"category": e.category, "type": e.type, "action": action, "clause": clause,
+                    "before": ("…" if e.start - ctx > line_start else "") + before,
+                    "hit": hit if len(hit) <= 120 else hit[:117] + "…",
+                    "after": after + ("…" if e.end + ctx < line_end else ""), "_pos": e.start})
+    out.sort(key=lambda x: (SEVERITY[x["action"]], x["_pos"]))
+    for x in out:
+        del x["_pos"]
+    return out[:limit]

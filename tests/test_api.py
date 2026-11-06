@@ -116,3 +116,13 @@ def test_ws_requires_auth(client):
         ws.send_json({"type": "auth", "token": h})
         # 연결 유지: 온라인 목록에 나타난다
         assert "u06" in client.get("/api/online", headers=login(client, "u06")).json()
+
+
+def test_judge_returns_causes_but_does_not_cache_them(client):
+    h = login(client, "u05")
+    doc = "인사 발령 안내\n주민등록번호: 950312-2345678 연락처 010-9876-5432\n".encode()
+    r = client.post("/api/judge", headers=h, files={"file": ("a.txt", doc)}, data={"recipient_ids": "x01"})
+    d = r.json()["decisions"][0]
+    assert d["action"] == "BLOCK" and any(c["hit"] == "950312-2345678" for c in d["causes"])
+    cached = main._judge_cache[r.json()["judge_id"]][1][0]
+    assert "causes" not in cached                                   # 원문 일부는 서버에 남기지 않음

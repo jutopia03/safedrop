@@ -153,10 +153,15 @@ function renderDecision(x) {
       <span class="clause">[${r.clause}] ${esc(r.clause_text)}</span></li>`).join('') || '<li>탐지된 개인정보 없음</li>';
   const exBox = x.explanation ? renderExplain(x.explanation) : '';
   const preview = x.masked_preview ? `<details><summary>마스킹본 미리보기</summary><pre>${esc(x.masked_preview)}</pre></details>` : '';
+  // 차단·마스킹 원인이 문서의 어느 부분인지 (사용자 테스트 피드백 반영)
+  const causes = x.causes?.length ? `<details class="causes"><summary>${x.action === 'BLOCK' ? '차단' : '가려지는'} 원인 위치 보기 · ${x.causes.length}곳</summary>
+    <p class="hint">${x.action === 'BLOCK' ? '빨간 표시 부분을 지우면 다시 검사해 보낼 수 있습니다. 주황 표시는 보낼 때 가려지는 부분입니다.' : '표시된 부분이 가려진 뒤 전송됩니다.'}</p>
+    <ul>${x.causes.map((c) => `<li><span class="badge ${c.action}">${LABEL.action[c.action]}</span> ${LABEL.category[c.category]} <span class="clause">[${esc(c.clause)}]</span>
+      <div class="ctx">${esc(c.before)}<mark class="${c.action}">${esc(c.hit)}</mark>${esc(c.after)}</div></li>`).join('')}</ul></details>` : '';
   return `<div class="res ${x.action}" id="res-${x.recipient.id}">
     <div class="head"><div><b>${esc(x.recipient.name)}</b> · ${esc(x.recipient.dept)} <span class="dept">(${LABEL.rclass[x.recipient_class]})</span></div>
       <span class="badge ${x.action}">${LABEL.action[x.action]}</span></div>
-    ${exBox}<ul class="reasons">${reasons}</ul>${preview}<div class="status"></div></div>`;
+    ${exBox}<ul class="reasons">${reasons}</ul>${causes}${preview}<div class="status"></div></div>`;
 }
 
 async function doSend() {
@@ -178,7 +183,9 @@ async function doSend() {
       if (st) st.textContent = '✅ P2P로 직접 전송 완료 (파일 전달은 서버를 거치지 않음)';
     } catch (e) {
       await sendRelay(d.tid, item, bytes);
-      if (st) st.textContent = `↪ P2P 실패(${e.message}) → 서버 중계로 전송 (수신 즉시 삭제, 최대 10분 보관)`;
+      // 서버 중계는 설계된 정상 경로 — '실패'로 보이지 않게 결과 중심으로 안내 (사용자 테스트 피드백 반영)
+      const why = /미접속|offline/i.test(e.message) ? '받는 사람이 지금 접속해 있지 않아' : '직접 연결이 되지 않아';
+      if (st) st.textContent = `✅ 전송 완료 — ${why} 서버가 잠시 보관 중이며, 받는 사람이 접속하면 바로 전달됩니다 (전달 즉시 삭제, 최대 10분)`;
     }
   }
   if (meUser?.admin) loadAudit();
