@@ -36,7 +36,7 @@ docker compose up -d
 ## 3. 확인
 - `http://<서버>:8000/api/health` → `"llm": "qwen3:8b"` 가 보이면 로컬 AI 연결 완료
 - 정보보호 관리자 계정으로 로그인 → '성능 측정'에서 AI 민감정보 판단·AI 설명 측정 실행 → `docs/eval/local_llm.md`와 비슷한 수치인지 확인
-- 운영 시에는 앞단에 사내 HTTPS 리버스 프록시를 둡니다 (브라우저 WebCrypto·WebRTC는 HTTPS에서 동작)
+- 실제로 운영한다면 앞단에 사내 HTTPS 리버스 프록시를 둡니다 (브라우저 WebCrypto·WebRTC는 HTTPS에서 동작)
 
 ## 한계 (현재 버전)
 - 조직도·규정은 `data/company/`의 파일이라, 바꾸면 이미지를 다시 빌드해야 합니다 (향후: 관리 화면·사내 계정 연동)

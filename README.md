@@ -52,6 +52,7 @@
 ## 문서
 | 문서 | 내용 |
 |---|---|
+| **[결과보고서 (요약)](docs/report.md)** | 기획·AI 적용 방식·기술 결정·결과·실용성·협업·한계를 2~3쪽으로 |
 | [요구사항 명세](docs/requirements.md) | 문제 정의·배경 통계, 일반적인 DLP와의 차이·베이스라인 대비 개선, 기능·비기능 요구사항과 달성 현황 |
 | [아키텍처](docs/architecture.md) | 시스템 구성도, 데이터 파이프라인, 전송 흐름, 보안 설계, 한계 |
 | [개발 과정](docs/understanding.md) | 단계별(S1~S13) 결정, 측정 → 개선 → 재측정 기록 |
@@ -68,7 +69,7 @@ uvicorn backend.app.main:app --reload                   # http://localhost:8000
 ```
 - OCR(스캔 PDF·사진)은 Tesseract와 한국어 데이터가 필요합니다(`Dockerfile` 참고). 없으면 스캔 문서는 '확인 불가 → 차단'으로 처리됩니다.
 - 폐쇄망(사내 설치): [`deploy/onprem/`](deploy/onprem/README.md) — 앱 + 로컬 LLM(Ollama) 설치 묶음, GPU 16GB 1대 기준. 외부 API 없이 동작
-- 실제 배포 기준 점검과 로드맵: [아키텍처 6장](docs/architecture.md)
+- 실제 도입을 가정한 점검과 로드맵: [아키텍처 6장](docs/architecture.md)
 
 <details>
 <summary>배포 (Render 무료 웹 서비스)</summary>
