@@ -63,7 +63,7 @@
 ## 직접 실행
 ```bash
 pip install -r requirements.txt
-pip install -r requirements-dev.txt && pytest -q      # 자동 테스트 62개 (AI·네트워크 없이 약 10초)
+pip install -r requirements-dev.txt && pytest -q      # 자동 테스트 63개 (AI·네트워크 없이 약 10초)
 cp .env.example .env                                    # AI 키·시연 비밀번호 설정 (비우면 규칙 탐지만 동작)
 uvicorn backend.app.main:app --reload                   # http://localhost:8000
 ```

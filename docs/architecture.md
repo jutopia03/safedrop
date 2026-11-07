@@ -172,7 +172,7 @@ sequenceDiagram
 | 암호 | cryptography (ECDSA P-256), HMAC-SHA256 | 브라우저 WebCrypto로 검증 가능한 표준 곡선 |
 | AI | OpenAI 호환 SDK — 판단 gpt-5-mini, 설명 gpt-5.4-mini | 주소만 바꾸면 로컬 Ollama로 교체 가능(폐쇄망 대응) |
 | 배포 | Render 무료 웹 서비스 (Docker, `render.yaml`) | 카드 없이 외부 접속 가능한 HTTPS 주소 |
-| 테스트 | pytest 62개 | LLM·네트워크 없이 약 10초, 가짜 LLM으로 안전장치 검증 |
+| 테스트 | pytest 63개 | LLM·네트워크 없이 약 10초, 가짜 LLM으로 안전장치 검증 |
 
 ## 6. 실제 도입을 가정한 점검과 로드맵
 현재 버전은 "한 회사가 서버 1대에 설치해 시범 운영할 수 있는 수준"을 목표로 했다. 만약 실제로 회사 전체에 도입한다면, 부족한 점과 해결 순서는 다음과 같다.

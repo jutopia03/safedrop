@@ -7,6 +7,7 @@ import hashlib
 import json
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import WebSocket
@@ -17,12 +18,18 @@ from .mask import mask_text
 ROOT = Path(__file__).resolve().parents[2]
 AUDIT = ROOT / "logs" / "audit.jsonl"
 RELAY_TTL_SEC = 10 * 60
+# 서버(Render·컨테이너)는 UTC로 돌아가므로 기록 시각은 한국 시간으로 고정한다
+KST = timezone(timedelta(hours=9), "KST")
+
+
+def now_kst() -> str:
+    return datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S")
 
 
 # ---------- 감사 로그 ----------
 def audit(event: str, **fields):
     AUDIT.parent.mkdir(exist_ok=True)
-    rec = {"time": time.strftime("%Y-%m-%d %H:%M:%S"), "event": event, **fields}
+    rec = {"time": now_kst(), "event": event, **fields}
     with AUDIT.open("a", encoding="utf-8") as f:
         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 

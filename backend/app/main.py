@@ -273,7 +273,7 @@ def _run_eval_job(name: str, script: str):
         out = r.stdout + (("\n[오류]\n" + r.stderr[-2000:]) if r.returncode else "")
     except Exception as e:  # 시간 초과 등
         out = f"[오류] {e}"
-    _evals[name].update(status="done", finished=time.strftime("%Y-%m-%d %H:%M:%S"), output=out)
+    _evals[name].update(status="done", finished=transfer.now_kst(), output=out)
 
 
 @app.get("/api/eval/{name}", response_class=PlainTextResponse)

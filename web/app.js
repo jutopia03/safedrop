@@ -328,7 +328,7 @@ async function loadAudit() {
   if (!r.ok) return;
   const rows = await r.json();
   const name = (id) => (id ? person(id).name : '');
-  $('audit').innerHTML = rows.length ? `<table><tr><th>시각</th><th>이벤트</th><th>발신</th><th>수신</th><th>파일</th><th>내용</th></tr>` +
+  $('audit').innerHTML = rows.length ? `<table><tr><th>시각 (한국)</th><th>이벤트</th><th>발신</th><th>수신</th><th>파일</th><th>내용</th></tr>` +
     rows.map((r) => `<tr><td>${r.time.slice(5)}</td><td>${r.event}</td><td>${esc(name(r.sender))}</td><td>${esc(name(r.recipient))}</td>
       <td>${esc(r.file || '')}</td><td>${r.clauses ? '근거 ' + r.clauses.join(', ') : ''}${r.verified != null ? (r.verified ? '검증 통과' : '검증 실패: ' + esc(r.detail)) + ' (' + r.via + ')' : ''}</td></tr>`).join('') + '</table>'
     : '<p class="empty">기록 없음</p>';
